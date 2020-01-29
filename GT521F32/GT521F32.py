@@ -115,6 +115,9 @@ class GT521F32(object):
         logger.info("Iso area max size: %s" % (open_data_response.iso_area_max_size,))
         logger.info("Serial number: %s" % (open_data_response.device_serial_number,))
     
+    def __delete__(self):
+        self.close()
+
     def close(self):
         # does nothing
         if False:
