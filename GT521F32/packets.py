@@ -181,9 +181,9 @@ class ResponsePacket(Packet):
         return self.response_code == command_codes["ACK_OK"]
 
 class DataPacket(Packet):
-    def __init__(self, data):
+    def __init__(self, data=b''):
         super().__init__()
-        self._fields["Data"] = Parameter(parameter)
+        self._fields["Data"] = ("B",data)
         
     @property
     def data(self):
@@ -212,3 +212,12 @@ class OpenDataPacket(Packet):
         return bytes(self._fields["DeviceSerialNumber"][1]).hex().upper()
 
 
+Bitmap = lambda x: ("52116B", x)
+class GetImageDataPacket(Packet):
+    def __init__(self, bitmap=b''*52116):
+        super().__init__()
+        self._fields["Bitmap"] = Bitmap(bitmap)
+
+    @property
+    def bitmap(self):
+        return bytes(self._fields["Bitmap"][1])
