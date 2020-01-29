@@ -1,5 +1,6 @@
 import logging
 import serial
+import packets
 import os
 
 logger = logging.getLogger(__name__)
@@ -29,11 +30,41 @@ class GT521F32(object):
         self._interface.open()
         self._is_open = False
 
+    def send_command(self, command, parameter):
+        if command not in packets.command_codes.keys():
+            logger.error("Bad command.")
+            return
+
+        command_code = packets.command_codes[command]
+        command_packet = packets.CommandPacket(parameter=parameter, command=command_code)
+        
+        self._interface.write(command_packet.to_bytes())
+
+        # read response
+        to_read = packets.ResponsePacket().byte_size()
+        response_bytes = self._interface.read(to_read)
+
+        response_packet, _ = packets.ResponsePacket.from_bytes(response_bytes)
+        if not response_packet.ok:
+            logger.error("Command responded with code %x and error %04x" % (response_packet.response_code, response_packet.parameter))
+
     def open(self):
-        pass
+        self.send_command("OPEN", 1)
+
+        # read data response
+        to_read = packets.OpenDataPacket().byte_size()
+        response_bytes = self._interface.read(to_read)
+
+        open_data_response, _ = packets.OpenDataPacket.from_bytes(response_bytes)
+        logger.info("Firmware version: %s" % (open_data_response.firmware_version,))
+        logger.info("Iso area max size: %s" % (open_data_response.iso_area_max_size,))
+        logger.info("Serial number: %s" % (open_data_response.device_serial_number,))
     
-    def close(self)
-        pass
+    def close(self):
+        # does nothing
+        if False:
+            self.send_command("CLOSE", 0)
+        self._interface.close()
 
         
 

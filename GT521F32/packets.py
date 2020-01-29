@@ -121,7 +121,6 @@ class Packet(object):
     def from_bytes(cls, input_bytes):
         instance = cls()
         byte_stream = io.BytesIO(input_bytes)
-        import pdb;pdb.set_trace()
         for key, (field, _) in instance._fields.items():
             field_size = struct.calcsize(field)
             field_content = byte_stream.read(field_size)
@@ -163,7 +162,7 @@ class CommandPacket(Packet):
     def command(self):
         return self._fields["Command"][1][0]
 
-class ReponsePacket(Packet):
+class ResponsePacket(Packet):
     def __init__(self, parameter=0, response=0):
         super().__init__()
         self._fields["Parameter"] = Parameter(parameter)
@@ -176,6 +175,10 @@ class ReponsePacket(Packet):
     @property
     def response_code(self):
         return self._fields["Response"][1][0]
+
+    @property
+    def ok(self):
+        return self.response_code == command_codes["ACK_OK"]
 
 class DataPacket(Packet):
     def __init__(self, data):
@@ -198,7 +201,7 @@ class OpenDataPacket(Packet):
 
     @property
     def firmware_version(self):
-        return self._fields["FirmwareVersion"][1][0]
+        return hex(self._fields["FirmwareVersion"][1][0]).lstrip("0x")
 
     @property
     def iso_area_max_size(self):
