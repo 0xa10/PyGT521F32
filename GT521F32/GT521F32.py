@@ -225,6 +225,10 @@ class GT521F32(object):
             return False
         return True
 
+    def save_image_to_bmp(self, path):
+        self.prompt_finger(self.capture)
+        save_bitmap_to_file(path, self.get_image())
+
     # Utitilies
     def is_finger_pressed(self):
         _, parameter = self.send_command("IS_PRESS_FINGER", 0)
@@ -239,6 +243,3 @@ class GT521F32(object):
             self.wait_for_finger_press(interval)
             return action()
 
-    def save_image_to_bmp(self, path):
-        self.prompt_finger(self.capture)
-        save_bitmap_to_file(path, self.get_image())
