@@ -126,7 +126,7 @@ class Packet(object):
             field_content = byte_stream.read(field_size)
             if len(field_content) == 0:
                 print("Could not parse %s" % (cls),)
-                return None
+                return None, None
 
             unpacked_value = struct.unpack(field, field_content)
             instance._fields[key] = (field, unpacked_value)
@@ -136,12 +136,12 @@ class Packet(object):
         checksum_bytes = byte_stream.read(struct.calcsize(checksum_field))
         if len(checksum_bytes) == 0:
             print("Checksum bytes are missing.")
-            return None
+            return None, None
 
         checksum = struct.unpack(checksum_field, checksum_bytes)[0]
         if checksum != instance._checksum():
             print("Bad checksum.")
-            return None
+            return None, None
 
         if byte_stream.tell() < len(input_bytes):
             print("Extra bytes in packet, returning in second param")
