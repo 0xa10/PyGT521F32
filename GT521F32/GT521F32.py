@@ -165,7 +165,6 @@ class GT521F32(object):
         if not self.enroll_start(user_id):
             return False
 
-        import pdb;pdb.set_trace()
         for i in range(1,4):
             self.prompt_finger(functools.partial(self.enroll_n, i, save_enroll_photos))
             #self.enroll_n(i, save_enroll_photos) # Not sure why this only works when reentering
