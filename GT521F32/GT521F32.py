@@ -3,6 +3,7 @@ from . import packets
 import logging
 import contextlib
 import serial
+import threading
 import time
 import os
 import PIL
@@ -48,7 +49,10 @@ class GT521F32(object):
             self._interface.close()
 
         self._interface.open()
-        self._is_open = False
+        self._interface.reset_output_buffer()
+        self._interface.reset_input_buffer()
+
+        self._cancel = threading.Event()
 
     def flush(self):
         while len(self._interface.read(self._interface.in_waiting)) > 0:
@@ -247,9 +251,15 @@ class GT521F32(object):
         _, parameter = self.send_command("IS_PRESS_FINGER", 0)
         return not bool(parameter)
 
+    def cancel(self):
+        self._cancel.set()
+
     def wait_for_finger_press(self, interval=0.1):
-        while not self.is_finger_pressed():
+        while not self._cancel.is_set() and not self.is_finger_pressed():
             self._delay(interval)
+        if self._cancel.is_set():
+            logger.info("Cancelled action.")
+            self._cancel.clear()
 
     def prompt_finger(self, action, interval=0.1):
         with self.led():
