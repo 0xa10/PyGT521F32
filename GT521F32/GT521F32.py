@@ -1,7 +1,8 @@
+from . import packets 
+
 import logging
 import contextlib
 import serial
-import packets
 import time
 import os
 import PIL
@@ -27,9 +28,9 @@ def save_bitmap_to_file(path, bitmap):
     img.save(path, "BMP")
 
 class GT521F32(object):
-    DEFAULT_BAUD_RATE=9600
-    DEFAULT_BYTESIZE=serial.EIGHTBITS
-    DEFAULT_TIMEOUT=2 #seconds
+    _DEFAULT_BAUD_RATE=9601
+    _DEFAULT_BYTESIZE=serial.EIGHTBITS
+    _DEFAULT_TIMEOUT=2 #seconds
     _BUFFERED_DELAY=0.05
     def __init__(self, port):
         self._port = port
@@ -37,8 +38,8 @@ class GT521F32(object):
             self._interface = serial.Serial(
                                         port=self._port,
                                         baudrate=9600,
-                                        bytesize=GT521F32.DEFAULT_BYTESIZE,
-                                        timeout=GT521F32.DEFAULT_TIMEOUT)
+                                        bytesize=GT521F32._DEFAULT_BYTESIZE,
+                                        timeout=GT521F32._DEFAULT_TIMEOUT)
         except serial.SerialException as e:
             logger.error("Could not open the serial device: %s" % (e,))
             return None
@@ -48,6 +49,10 @@ class GT521F32(object):
 
         self._interface.open()
         self._is_open = False
+
+    def flush(self):
+        while len(self._interface.read(self._interface.in_waiting)) > 0:
+            self._delay(self._BUFFERED_DELAY)
 
     def _delay(self, seconds):
         time.sleep(seconds)
@@ -94,8 +99,8 @@ class GT521F32(object):
         self._interface = serial.Serial(
                                     port=self._port,
                                     baudrate=baud_rate,
-                                    bytesize=GT521F32.DEFAULT_BYTESIZE,
-                                    timeout=GT521F32.DEFAULT_TIMEOUT)
+                                    bytesize=GT521F32._DEFAULT_BYTESIZE,
+                                    timeout=GT521F32._DEFAULT_TIMEOUT)
 
     def change_baud_rate(self, baud_rate):
         try:
@@ -133,8 +138,12 @@ class GT521F32(object):
         return True
 
     @retry_three_times
-    def enroll_n(self, n):
+    def enroll_n(self, n, save_enroll_photos=False):
         self.prompt_finger(self.capture)
+        if save_enroll_photos:
+            out_path = "Enroll%d.bmp" % (n,)
+            logger.info("Saving Enroll%d to %s" % (n, out_path))
+            save_bitmap_to_file(out_path, self.get_image())
         response_code, parameter = self.send_command("ENROLL%d" % (n,), 0)
         if response_code is not 0x30:
             error_code = packets.reverse(packets.response_error).get(
@@ -151,13 +160,15 @@ class GT521F32(object):
         logger.debug("Enroll%d succeeded." % (n,))
         return True
 
-    def enroll_user(self, user_id):
+    def enroll_user(self, user_id, save_enroll_photos=False):
         attempts = 0
         if not self.enroll_start(user_id):
             return False
 
+        import pdb;pdb.set_trace()
         for i in range(1,4):
-            self.prompt_finger(functools.partial(self.enroll_n, i))
+            self.prompt_finger(functools.partial(self.enroll_n, i, save_enroll_photos))
+            #self.enroll_n(i, save_enroll_photos) # Not sure why this only works when reentering
 
         logger.debug("Enroll user id: %d succeeded." % (user_id,))
 
