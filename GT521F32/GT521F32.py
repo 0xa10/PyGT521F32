@@ -28,6 +28,9 @@ def save_bitmap_to_file(path, bitmap):
     img = PIL.Image.frombytes("L", (202, 258), bitmap, 'raw')
     img.save(path, "BMP")
 
+class GT521F32Exception(Exception):
+    pass
+
 class GT521F32(object):
     _DEFAULT_BAUD_RATE=9600
     _DEFAULT_BYTESIZE=serial.EIGHTBITS
@@ -43,7 +46,7 @@ class GT521F32(object):
                                         timeout=GT521F32._DEFAULT_TIMEOUT)
         except serial.SerialException as e:
             logger.error("Could not open the serial device: %s" % (e,))
-            return None
+            raise GT521F32Exception("Failed to open the serial device.")
         
         if self._interface.is_open:
             self._interface.close()
