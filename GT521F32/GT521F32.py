@@ -29,7 +29,7 @@ def save_bitmap_to_file(path, bitmap):
     img.save(path, "BMP")
 
 class GT521F32(object):
-    _DEFAULT_BAUD_RATE=9601
+    _DEFAULT_BAUD_RATE=9600
     _DEFAULT_BYTESIZE=serial.EIGHTBITS
     _DEFAULT_TIMEOUT=2 #seconds
     _BUFFERED_DELAY=0.05
@@ -38,7 +38,7 @@ class GT521F32(object):
         try:
             self._interface = serial.Serial(
                                         port=self._port,
-                                        baudrate=9600,
+                                        baudrate=GT521F32._DEFAULT_BAUD_RATE,
                                         bytesize=GT521F32._DEFAULT_BYTESIZE,
                                         timeout=GT521F32._DEFAULT_TIMEOUT)
         except serial.SerialException as e:
