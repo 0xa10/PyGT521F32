@@ -5,6 +5,7 @@ from builtins import super
 import logging
 import contextlib
 import serial
+import threading
 import time
 import os
 import PIL
@@ -29,8 +30,11 @@ def save_bitmap_to_file(path, bitmap):
     img = PIL.Image.frombytes("L", (202, 258), bitmap, 'raw')
     img.save(path, "BMP")
 
+class GT521F32Exception(Exception):
+    pass
+
 class GT521F32(object):
-    _DEFAULT_BAUD_RATE=9601
+    _DEFAULT_BAUD_RATE=9600
     _DEFAULT_BYTESIZE=serial.EIGHTBITS
     _DEFAULT_TIMEOUT=2 #seconds
     _BUFFERED_DELAY=0.05
@@ -39,18 +43,21 @@ class GT521F32(object):
         try:
             self._interface = serial.Serial(
                                         port=self._port,
-                                        baudrate=9600,
+                                        baudrate=GT521F32._DEFAULT_BAUD_RATE,
                                         bytesize=GT521F32._DEFAULT_BYTESIZE,
                                         timeout=GT521F32._DEFAULT_TIMEOUT)
         except serial.SerialException as e:
             logger.error("Could not open the serial device: %s" % (e,))
-            return None
+            raise GT521F32Exception("Failed to open the serial device.")
         
         if self._interface.is_open:
             self._interface.close()
 
         self._interface.open()
-        self._is_open = False
+        self._interface.reset_output_buffer()
+        self._interface.reset_input_buffer()
+
+        self._cancel = threading.Event()
 
     def flush(self):
         while len(self._interface.read(self._interface.in_waiting)) > 0:
@@ -249,9 +256,15 @@ class GT521F32(object):
         _, parameter = self.send_command("IS_PRESS_FINGER", 0)
         return not bool(parameter)
 
+    def cancel(self):
+        self._cancel.set()
+
     def wait_for_finger_press(self, interval=0.1):
-        while not self.is_finger_pressed():
+        while not self._cancel.is_set() and not self.is_finger_pressed():
             self._delay(interval)
+        if self._cancel.is_set():
+            logger.info("Cancelled action.")
+            self._cancel.clear()
 
     def prompt_finger(self, action, interval=0.1):
         with self.led():

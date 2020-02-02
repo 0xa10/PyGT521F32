@@ -9,6 +9,9 @@ reverse = lambda x: {v:k for k,v in x.items()}
 CommandStartCode1 = ("B", (0x55,))
 CommandStartCode2 = ("B", (0xAA,))
 
+DataStartCode1 = ("B", (0x5A,))
+DataStartCode2 = ("B", (0xA5,))
+
 DeviceId = ("<H", (1,))
 
 Parameter = lambda x: ("<L", (x,))
@@ -132,6 +135,8 @@ class Packet(object):
 
             unpacked_value = struct.unpack(field, field_content)
             instance._fields[key] = (field, unpacked_value)
+        
+        # TODO - verify base fields
 
         # verify checksum
         checksum_field, _= Checksum(0)
@@ -184,8 +189,12 @@ class ResponsePacket(Packet):
 
 class DataPacket(Packet):
     def __init__(self, data=b''):
-        super().__init__()
-        self._fields["Data"] = ("B",data)
+        self._fields = OrderedDict()
+        self._fields["DataStartCode1"] = DataStartCode1
+        self._fields["DataStartCode1"] = DataStartCode2
+        self._fields['DeviceId'] = DeviceId
+
+        self._fields["Data"] = ("B",data) # abstract 
         
     @property
     def data(self):
