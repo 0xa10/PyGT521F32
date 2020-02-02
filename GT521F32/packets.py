@@ -103,7 +103,8 @@ class Packet(object):
         self._fields["DeviceId"] = DeviceId
 
     def _checksum(self):
-        return (sum(self._field_bytes()) % 2**16)
+        self._field_bytes_ord = [ord(_) for _ in self._field_bytes()]
+        return (sum(self._field_bytes_ord) % 2**16)
 
     def byte_size(self):
         field_byte_size = sum(struct.calcsize(field) for field, _ in self._fields.values())
@@ -220,7 +221,7 @@ class OpenDataPacket(Packet):
 
     @property
     def device_serial_number(self):
-        return bytes(self._fields["DeviceSerialNumber"][1]).hex().upper()
+        return bytes(self._fields["DeviceSerialNumber"][1]).encode("hex").upper()
 
 
 Bitmap = lambda x: ("52116B", x)

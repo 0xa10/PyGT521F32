@@ -189,6 +189,7 @@ class GT521F32(object):
         return parameter
 
     def get_image(self):
+        raise Exception("Unimplemented in Python2 due to voodoo.")
         self.send_command("GET_IMAGE", 0)
 
         # read data response
