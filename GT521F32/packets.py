@@ -2,6 +2,8 @@ import struct
 import io
 from collections import OrderedDict
 
+from builtins import super
+
 reverse = lambda x: {v:k for k,v in x.items()}
 
 CommandStartCode1 = ("B", (0x55,))

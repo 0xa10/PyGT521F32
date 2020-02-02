@@ -1,5 +1,7 @@
 from . import packets 
 
+from builtins import super
+
 import logging
 import contextlib
 import serial
