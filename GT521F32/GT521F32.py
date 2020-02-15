@@ -1,4 +1,5 @@
 from . import packets 
+from . import scsi
 
 import logging
 import contextlib
@@ -35,16 +36,17 @@ class GT521F32(object):
     _DEFAULT_BAUD_RATE=9600
     _DEFAULT_BYTESIZE=serial.EIGHTBITS
     _DEFAULT_TIMEOUT=2 #seconds
-    _BUFFERED_DELAY=0.05
+    _BUFFERED_DELAY=0.15
     def __init__(self, port):
         self._port = port
         try:
-            self._interface = serial.Serial(
-                                        port=self._port,
-                                        baudrate=GT521F32._DEFAULT_BAUD_RATE,
-                                        bytesize=GT521F32._DEFAULT_BYTESIZE,
-                                        timeout=GT521F32._DEFAULT_TIMEOUT)
-        except serial.SerialException as e:
+            self._interface = scsi.SCSIInterface(port)
+            #self._interface = serial.Serial(
+            #                            port=self._port,
+            #                            baudrate=GT521F32._DEFAULT_BAUD_RATE,
+            #                            bytesize=GT521F32._DEFAULT_BYTESIZE,
+            #                            timeout=GT521F32._DEFAULT_TIMEOUT)
+        except scsi.SCSIException as e:
             logger.error("Could not open the serial device: %s" % (e,))
             raise GT521F32Exception("Failed to open the serial device.")
         
@@ -52,26 +54,21 @@ class GT521F32(object):
             self._interface.close()
 
         self._interface.open()
-        self._interface.reset_output_buffer()
-        self._interface.reset_input_buffer()
 
         self._cancel = threading.Event()
-
-    def flush(self):
-        while len(self._interface.read(self._interface.in_waiting)) > 0:
-            self._delay(self._BUFFERED_DELAY)
 
     def _delay(self, seconds):
         time.sleep(seconds)
 
     def _buffered_read(self, count):
         data = bytes()
-        fragment = self._interface.read(self._interface.in_waiting)
+        fragment_size = 512
+        fragment = self._interface.read(fragment_size)
         while len(data) < count:
             self._delay(self._BUFFERED_DELAY)
             logger.debug("Read fragment of %d size" % (len(fragment),))
             data += fragment
-            fragment = self._interface.read(self._interface.in_waiting)
+            fragment = self._interface.read(fragment_size)
         
         assert len(data) == count
         return data
@@ -100,15 +97,6 @@ class GT521F32(object):
 
         return response_packet.response_code, response_packet.parameter
     
-    def change_baud_rate_and_reopen(self, baud_rate):
-        self.change_baud_rate(baud_rate)
-        self._interface.close()
-        self._interface = serial.Serial(
-                                    port=self._port,
-                                    baudrate=baud_rate,
-                                    bytesize=GT521F32._DEFAULT_BYTESIZE,
-                                    timeout=GT521F32._DEFAULT_TIMEOUT)
-
     def change_baud_rate(self, baud_rate):
         try:
             self.send_command("CHANGE_BAUDRATE", baud_rate)
