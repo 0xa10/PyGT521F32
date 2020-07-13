@@ -36,7 +36,6 @@ class GT521F32(object):
     _DEFAULT_BAUD_RATE=9600
     _DEFAULT_BYTESIZE=serial.EIGHTBITS
     _DEFAULT_TIMEOUT=2 #seconds
-    _BUFFERED_DELAY=0.15
     def __init__(self, port):
         self._port = port
         try:
@@ -59,19 +58,6 @@ class GT521F32(object):
 
     def _delay(self, seconds):
         time.sleep(seconds)
-
-    def _buffered_read(self, count):
-        data = bytes()
-        fragment_size = 512
-        fragment = self._interface.read(fragment_size)
-        while len(data) < count:
-            self._delay(self._BUFFERED_DELAY)
-            logger.debug("Read fragment of %d size" % (len(fragment),))
-            data += fragment
-            fragment = self._interface.read(fragment_size)
-        
-        assert len(data) == count
-        return data
 
     def send_command(self, command, parameter):
         if command not in packets.command_codes.keys():
@@ -180,7 +166,7 @@ class GT521F32(object):
         # read data response
         logger.info("Downloading image...")
         to_read = packets.GetImageDataPacket().byte_size()
-        response_bytes = self._buffered_read(to_read)
+        response_bytes =  self._interface.read(to_read)
 
         get_image_data_response, _ = packets.GetImageDataPacket.from_bytes(response_bytes)
 
