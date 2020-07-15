@@ -130,7 +130,7 @@ class GT521F32(object):
     def device_serial_number(self):
         return self._device_serial_number
 
-    def open(self) -> Tuple[str, str, str]:
+    def open(self) -> Tuple[str, int, str]:
         _, _ = self.send_command("OPEN", 1)
 
         # read data response
