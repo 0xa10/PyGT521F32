@@ -72,6 +72,8 @@ command_codes = {
         "NACK_INFO"             : 0x31
 }
 
+ACK_OK = command_codes["ACK_OK"]
+
 response_error = {
         "NACK_TIMEOUT"               : 0x1001,              
         "NACK_INVALID_BAUDRATE"      : 0x1002,      
