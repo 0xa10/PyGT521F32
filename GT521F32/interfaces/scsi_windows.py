@@ -5,11 +5,11 @@ import ctypes
 
 # an interface for communicating with reader over SCSI, implemented in the style of pyserial
 
-DRIVE_REMOVABLE=2
-DRIVE_CDROM=5
+DRIVE_REMOVABLE = 2
+DRIVE_CDROM = 5
 
-FILE_SHARE_READ=1
-FILE_SHARE_WRITE=2
+FILE_SHARE_READ = 1
+FILE_SHARE_WRITE = 2
 
 UCHAR = ctypes.c_ubyte
 PVOID = win32.PVOID
@@ -18,53 +18,75 @@ LPVOID = win32.LPVOID
 LPDWORD = win32.LPDWORD
 
 try:
-        GetDriveTypeW = win32._stdcall_libraries['kernel32'].GetDriveTypeW
-        GetDriveTypeW.restype = UINT
-        GetDriveTypeW.argtypes = [LPCWSTR,]
-        GetDriveType = GetDriveTypeW  # alias
+    GetDriveTypeW = win32._stdcall_libraries["kernel32"].GetDriveTypeW
+    GetDriveTypeW.restype = UINT
+    GetDriveTypeW.argtypes = [
+        LPCWSTR,
+    ]
+    GetDriveType = GetDriveTypeW  # alias
 except AttributeError:
-        from ctypes.wintypes import LPCSTR
-        GetDriveTypeA = win32._stdcall_libraries['kernel32'].GetDriveTypeA
-        GetDriveTypeA.restype = UINT
-        GetDriveTypeA.argtypes = [LPCSTR,]
-        GetDriveType = GetDriveTypeA  # alias
+    from ctypes.wintypes import LPCSTR
 
-DeviceIoControl = win32._stdcall_libraries['kernel32'].DeviceIoControl
+    GetDriveTypeA = win32._stdcall_libraries["kernel32"].GetDriveTypeA
+    GetDriveTypeA.restype = UINT
+    GetDriveTypeA.argtypes = [
+        LPCSTR,
+    ]
+    GetDriveType = GetDriveTypeA  # alias
+
+DeviceIoControl = win32._stdcall_libraries["kernel32"].DeviceIoControl
 DeviceIoControl.restype = BOOL
-DeviceIoControl.argtypes = [HANDLE, DWORD, LPVOID, DWORD, LPVOID, DWORD, LPDWORD, LPOVERLAPPED]
+DeviceIoControl.argtypes = [
+    HANDLE,
+    DWORD,
+    LPVOID,
+    DWORD,
+    LPVOID,
+    DWORD,
+    LPDWORD,
+    LPOVERLAPPED,
+]
+
 
 class SCSI_PASS_THROUGH_DIRECT(ctypes.Structure):
     pass
 
+
 SCSI_PASS_THROUGH_DIRECT._fields_ = [
-        ('Length', USHORT),
-        ('ScsiStatus', UCHAR),
-        ('PathId', UCHAR),
-        ('TargetId', UCHAR),
-        ('Lun', UCHAR),
-        ('CdbLength', UCHAR),
-        ('SenseInfoLength', UCHAR),
-        ('DataIn', UCHAR),
-        ('DataTransferLength', ULONG),
-        ('TimeOutValue', ULONG),
-        ('DataBuffer', PVOID),
-        ('SenseInfoOffset', ULONG),
-        ('Cdb', UCHAR*16),
+    ("Length", USHORT),
+    ("ScsiStatus", UCHAR),
+    ("PathId", UCHAR),
+    ("TargetId", UCHAR),
+    ("Lun", UCHAR),
+    ("CdbLength", UCHAR),
+    ("SenseInfoLength", UCHAR),
+    ("DataIn", UCHAR),
+    ("DataTransferLength", ULONG),
+    ("TimeOutValue", ULONG),
+    ("DataBuffer", PVOID),
+    ("SenseInfoOffset", ULONG),
+    ("Cdb", UCHAR * 16),
 ]
+
 
 class SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER(ctypes.Structure):
     pass
 
+
 SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER._fields_ = [
-        ('sptd', SCSI_PASS_THROUGH_DIRECT),
-        ('Filler', ULONG),
-        ('ucSenseBuf', UCHAR*32),
+    ("sptd", SCSI_PASS_THROUGH_DIRECT),
+    ("Filler", ULONG),
+    ("ucSenseBuf", UCHAR * 32),
 ]
 
-def CTL_CODE(DeviceType, Function, Method, Access): return (DeviceType << 16) | (Access << 14) | (Function << 2) | Method
+
+def CTL_CODE(DeviceType, Function, Method, Access):
+    return (DeviceType << 16) | (Access << 14) | (Function << 2) | Method
+
+
 FILE_DEVICE_CONTROLLER = 0x00000004
 IOCTL_SCSI_BASE = FILE_DEVICE_CONTROLLER
-CDB10GENERIC_LENGTH = 10   
+CDB10GENERIC_LENGTH = 10
 SCSI_IOCTL_DATA_OUT = 0
 SCSI_IOCTL_DATA_IN = 1
 SCSI_IOCTL_DATA_UNSPECIFIED = 2
@@ -72,15 +94,19 @@ SCSI_IOCTL_DATA_UNSPECIFIED = 2
 METHOD_BUFFERED = 0
 FILE_READ_ACCESS = 1
 FILE_WRITE_ACCESS = 2
-IOCTL_SCSI_PASS_THROUGH_DIRECT = CTL_CODE(IOCTL_SCSI_BASE, 0x0405, METHOD_BUFFERED, FILE_READ_ACCESS | FILE_WRITE_ACCESS)  
+IOCTL_SCSI_PASS_THROUGH_DIRECT = CTL_CODE(
+    IOCTL_SCSI_BASE, 0x0405, METHOD_BUFFERED, FILE_READ_ACCESS | FILE_WRITE_ACCESS
+)
+
 
 class WindowsSCSIException(Exception):
     pass
 
+
 class WindowsSCSIInterface(object):
     def __init__(self, drive):
         self._drive = drive
-        
+
         self.is_open = False
 
     def open(self):
@@ -93,13 +119,14 @@ class WindowsSCSIInterface(object):
             raise WindowsSCSIException("Drive type is incorrect.")
 
         self._port_handle = win32.CreateFile(
-                ddk_drive_path,
-                win32.GENERIC_WRITE | win32.GENERIC_READ,
-                FILE_SHARE_READ | FILE_SHARE_WRITE,
-                None,
-                win32.OPEN_EXISTING,
-                win32.FILE_ATTRIBUTE_NORMAL ,#| win32.FILE_FLAG_OVERLAPPED,
-                0)
+            ddk_drive_path,
+            win32.GENERIC_WRITE | win32.GENERIC_READ,
+            FILE_SHARE_READ | FILE_SHARE_WRITE,
+            None,
+            win32.OPEN_EXISTING,
+            win32.FILE_ATTRIBUTE_NORMAL,  # | win32.FILE_FLAG_OVERLAPPED,
+            0,
+        )
 
         if self._port_handle == win32.INVALID_HANDLE_VALUE:
             self._port_handle = None
@@ -121,7 +148,9 @@ class WindowsSCSIInterface(object):
         sptdwb.sptd.DataTransferLength = size
         sptdwb.sptd.TimeOutValue = timeout
         sptdwb.sptd.DataBuffer = pbuf
-        sptdwb.sptd.SenseInfoOffset = SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER.ucSenseBuf.offset
+        sptdwb.sptd.SenseInfoOffset = (
+            SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER.ucSenseBuf.offset
+        )
         sptdwb.sptd.Cdb[0] = 0xEF
         sptdwb.sptd.Cdb[1] = 0xFF if read else 0xFE
 
@@ -129,29 +158,42 @@ class WindowsSCSIInterface(object):
         returned = DWORD(0)
 
         result_ok = DeviceIoControl(
-                    self._port_handle, 
-                    IOCTL_SCSI_PASS_THROUGH_DIRECT,
-                    ctypes.pointer(sptdwb),
-                    length,
-                    ctypes.pointer(sptdwb),
-                    length,
-                    ctypes.byref(returned),
-                    None)
+            self._port_handle,
+            IOCTL_SCSI_PASS_THROUGH_DIRECT,
+            ctypes.pointer(sptdwb),
+            length,
+            ctypes.pointer(sptdwb),
+            length,
+            ctypes.byref(returned),
+            None,
+        )
 
-        if not result_ok and win32.GetLastError() not in (win32.ERROR_SUCCESS, win32.ERROR_IO_PENDING):
-            raise WindowsSCSIException("DeviceIoControl failed ({!r})".format(ctypes.WinError()))
+        if not result_ok and win32.GetLastError() not in (
+            win32.ERROR_SUCCESS,
+            win32.ERROR_IO_PENDING,
+        ):
+            raise WindowsSCSIException(
+                "DeviceIoControl failed ({!r})".format(ctypes.WinError())
+            )
 
-        if returned.value < (SCSI_PASS_THROUGH_DIRECT.ScsiStatus.offset + SCSI_PASS_THROUGH_DIRECT.ScsiStatus.size):
-            raise WindowsSCSIException("Not enough SCSI information returned to determine error")
+        if returned.value < (
+            SCSI_PASS_THROUGH_DIRECT.ScsiStatus.offset
+            + SCSI_PASS_THROUGH_DIRECT.ScsiStatus.size
+        ):
+            raise WindowsSCSIException(
+                "Not enough SCSI information returned to determine error"
+            )
 
         if sptdwb.sptd.ScsiStatus != 0:
-            raise WindowsSCSIException("SCSI Operation returned %d" % (sptdwb.sptd.ScsiStatus,))
+            raise WindowsSCSIException(
+                "SCSI Operation returned %d" % (sptdwb.sptd.ScsiStatus,)
+            )
 
         return sptdwb.sptd.DataTransferLength
 
     def read(self, size=1):
         assert size != 0
-        # Allocate data 
+        # Allocate data
         buf = ctypes.create_string_buffer(size)
         data_read = self._scsi_operation(ctypes.addressof(buf), size, True)
 
@@ -167,4 +209,3 @@ class WindowsSCSIInterface(object):
 
     def close(self):
         win32.CloseHandle(self._port_handle)
-

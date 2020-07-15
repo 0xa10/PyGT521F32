@@ -1,2 +1,2 @@
 class InterfaceException(Exception):
-	pass
+    pass

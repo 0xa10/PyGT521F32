@@ -10,24 +10,26 @@ logger = logging.getLogger(__name__)
 class SerialInterfaceException(InterfaceException):
     pass
 
+
 class SerialInterface(object):
-    _DEFAULT_BAUD_RATE=9600
-    _DEFAULT_BYTESIZE=serial.EIGHTBITS
-    _DEFAULT_TIMEOUT=2 #seconds
-    _BUFFERED_DELAY=0.05
-    _FRAGMENT_SIZE=512
-    def __init__(self, 
-                 port,  
-                 baudrate=_DEFAULT_BAUD_RATE, 
-                 bytesize=_DEFAULT_BYTESIZE, 
-                 timeout=_DEFAULT_TIMEOUT):
+    _DEFAULT_BAUD_RATE = 9600
+    _DEFAULT_BYTESIZE = serial.EIGHTBITS
+    _DEFAULT_TIMEOUT = 2  # seconds
+    _BUFFERED_DELAY = 0.05
+    _FRAGMENT_SIZE = 512
+
+    def __init__(
+        self,
+        port,
+        baudrate=_DEFAULT_BAUD_RATE,
+        bytesize=_DEFAULT_BYTESIZE,
+        timeout=_DEFAULT_TIMEOUT,
+    ):
         self._port = port
         try:
             self._serial = serial.Serial(
-                                port=self._port,
-                                baudrate=baudrate,
-                                bytesize=bytesize,
-                                timeout=timeout)
+                port=self._port, baudrate=baudrate, bytesize=bytesize, timeout=timeout
+            )
         except serial.SerialException as e:
             logger.error("Could not open the serial device: %s" % (e,))
             raise SerialInterfaceException(e)
@@ -51,7 +53,7 @@ class SerialInterface(object):
             logger.debug("Read fragment of %d size" % (len(fragment),))
             data += fragment
             fragment = self._serial.read(self._serial.in_waiting)
-        
+
         assert len(data) == count
         return data
 
