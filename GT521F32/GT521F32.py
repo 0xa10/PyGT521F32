@@ -1,8 +1,8 @@
 from . import packets 
+from . import interfaces
 
 import logging
 import contextlib
-import serial
 import threading
 import time
 import os
@@ -11,11 +11,6 @@ import PIL.Image
 import functools
 
 logger = logging.getLogger(__name__)
-
-SB_OEM_PKT_SIZE=12
-SB_OEM_HEADER_SIZE=2
-SB_OEM_DEV_ID_SIZE=2
-SB_OEM_CHK_SUM_SIZE=2
 
 def retry_three_times(func):
     def wrapper(*args, **kwargs):
@@ -32,49 +27,20 @@ class GT521F32Exception(Exception):
     pass
 
 class GT521F32(object):
-    _DEFAULT_BAUD_RATE=9600
-    _DEFAULT_BYTESIZE=serial.EIGHTBITS
-    _DEFAULT_TIMEOUT=2 #seconds
-    _BUFFERED_DELAY=0.05
     def __init__(self, port):
         self._port = port
         try:
-            self._interface = serial.Serial(
-                                        port=self._port,
-                                        baudrate=GT521F32._DEFAULT_BAUD_RATE,
-                                        bytesize=GT521F32._DEFAULT_BYTESIZE,
-                                        timeout=GT521F32._DEFAULT_TIMEOUT)
-        except serial.SerialException as e:
-            logger.error("Could not open the serial device: %s" % (e,))
-            raise GT521F32Exception("Failed to open the serial device.")
+            self._interface = interfaces.SerialInterface(port=port)
+        except interfaces.InterfaceException as e:
+            logger.error("Could not open the fingerprint device: %s" % (e,))
+            raise GT521F32Exception("Failed to open the fingerprint device.")
         
-        if self._interface.is_open:
-            self._interface.close()
-
-        self._interface.open()
-        self._interface.reset_output_buffer()
-        self._interface.reset_input_buffer()
 
         self._cancel = threading.Event()
 
-    def flush(self):
-        while len(self._interface.read(self._interface.in_waiting)) > 0:
-            self._delay(self._BUFFERED_DELAY)
 
     def _delay(self, seconds):
         time.sleep(seconds)
-
-    def _buffered_read(self, count):
-        data = bytes()
-        fragment = self._interface.read(self._interface.in_waiting)
-        while len(data) < count:
-            self._delay(self._BUFFERED_DELAY)
-            logger.debug("Read fragment of %d size" % (len(fragment),))
-            data += fragment
-            fragment = self._interface.read(self._interface.in_waiting)
-        
-        assert len(data) == count
-        return data
 
     def send_command(self, command, parameter):
         if command not in packets.command_codes.keys():
@@ -100,16 +66,9 @@ class GT521F32(object):
 
         return response_packet.response_code, response_packet.parameter
     
-    def change_baud_rate_and_reopen(self, baud_rate):
-        self.change_baud_rate(baud_rate)
-        self._interface.close()
-        self._interface = serial.Serial(
-                                    port=self._port,
-                                    baudrate=baud_rate,
-                                    bytesize=GT521F32._DEFAULT_BYTESIZE,
-                                    timeout=GT521F32._DEFAULT_TIMEOUT)
-
     def change_baud_rate(self, baud_rate):
+        # Not really relevant for USB (scsi) mode, but the command
+        # is still supported
         try:
             self.send_command("CHANGE_BAUDRATE", baud_rate)
         except TypeError:
@@ -131,15 +90,15 @@ class GT521F32(object):
         self.close()
 
     def close(self):
-        # does nothing
         if False:
+            # does nothing
             self.send_command("CLOSE", 0)
         self.change_baud_rate(9600)
         self._interface.close()
 
     def enroll_start(self, user_id):
         response_code, parameter = self.send_command("ENROLL_START", user_id)
-        if response_code is not 0x30:
+        if response_code != 0x30:
             logger.error("EnrollStart error: %s" % (packets.reverse(packets.response_error)[parameter],))
             return False
         return True
@@ -152,7 +111,7 @@ class GT521F32(object):
             logger.info("Saving Enroll%d to %s" % (n, out_path))
             save_bitmap_to_file(out_path, self.get_image())
         response_code, parameter = self.send_command("ENROLL%d" % (n,), 0)
-        if response_code is not 0x30:
+        if response_code != 0x30:
             error_code = packets.reverse(packets.response_error).get(
                         parameter,
                         None
@@ -181,7 +140,7 @@ class GT521F32(object):
     def identify(self):
         self.prompt_finger(self.capture)
         response_code, parameter = self.send_command("IDENTIFY", 0)
-        if response_code is not 0x30:
+        if response_code != 0x30:
             logger.error("Identify error: %s" % (packets.reverse(packets.response_error)[parameter],))
             return None
         return parameter
@@ -192,7 +151,10 @@ class GT521F32(object):
         # read data response
         logger.info("Downloading image...")
         to_read = packets.GetImageDataPacket().byte_size()
-        response_bytes = self._buffered_read(to_read)
+        if self._do_buffering:
+            response_bytes = self._buffered_read(to_read)
+        else:
+            response_bytes = self._interface.read(to_read)
 
         get_image_data_response, _ = packets.GetImageDataPacket.from_bytes(response_bytes)
 
@@ -218,21 +180,21 @@ class GT521F32(object):
 
     def is_id_enrolled(self, user_id):
         response_code, parameter = self.send_command("CHECK_ENROLLED", user_id)
-        if response_code is not 0x30:
+        if response_code != 0x30:
             logger.error("CheckEnroll %d error: %s" % (user_id, packets.reverse(packets.response_error)[parameter]))
             return False
         return True
 
     def delete_id(self, user_id):
         response_code, parameter = self.send_command("DELETE_ID", user_id)
-        if response_code is not 0x30:
+        if response_code != 0x30:
             logger.error("DeleteID %d error: %s" % (user_id, packets.reverse(packets.response_error)[parameter]))
             return False
         return True
 
     def delete_all(self):
         response_code, parameter = self.send_command("DELETE_ALL", 0)
-        if response_code is not 0x30:
+        if response_code != 0x30:
             logger.error("DeleteAll error: %s" % (packets.reverse(packets.response_error)[parameter],))
             return False
         return True
@@ -240,7 +202,7 @@ class GT521F32(object):
     def verify(self, user_id):
         self.prompt_finger(self.capture)
         response_code, parameter = self.send_command("VERIFY", user_id)
-        if response_code is not 0x30:
+        if response_code != 0x30:
             logger.error("Verify %d error: %s" % (user_id, packets.reverse(packets.response_error)[parameter]))
             return False
         return True
