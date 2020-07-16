@@ -99,17 +99,17 @@ IOCTL_SCSI_PASS_THROUGH_DIRECT = CTL_CODE(
 )
 
 
-class WindowsSCSIException(Exception):
+class WindowsSCSIInterfaceException(Exception):
     pass
 
 
 class WindowsSCSIInterface(object):
-    def __init__(self, drive):
-        self._drive = drive
+    def __init__(self, port: str):
+        self._drive = port
 
-        self.is_open = False
+        self._open()
 
-    def open(self):
+    def _open(self):
         dos_drive_path = self._drive
         ddk_drive_path = "\\\\.\\%s" % (self._drive,)
 
@@ -131,8 +131,6 @@ class WindowsSCSIInterface(object):
         if self._port_handle == win32.INVALID_HANDLE_VALUE:
             self._port_handle = None
             raise WindowsSCSIException("Could not open drive.")
-
-        self.is_open = True
 
     def _scsi_operation(self, pbuf, size, read, timeout=10):
         sptdwb = SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER()

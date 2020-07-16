@@ -47,10 +47,11 @@ class GT521F32(object):
     def __init__(self, port: str, baudrate: Optional[None] = None):
         self._port = port
         try:
-            if baudrate is not None:
-                self._interface = SerialInterface(port=port, baudrate=baudrate)
-            else:
-                self._interface = SerialInterface(port=port)
+            self._interface = SCSIInterface(port="D:")
+            #if baudrate is not None:
+            #    self._interface = SerialInterface(port=port, baudrate=baudrate)
+            #else:
+            #    self._interface = SerialInterface(port=port)
         except InterfaceException as e:
             logger.error("Could not open the fingerprint device: %s" % (e,))
             raise GT521F32Exception("Failed to open the fingerprint device.")
