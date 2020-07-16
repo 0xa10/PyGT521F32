@@ -21,6 +21,8 @@ class LinuxSCSIInterface(object):
     def __init__(self, port: str):
         self._port = port
         try:
+            # The CAP_SYS_RAWIO capability is required to communicate over SGIO
+            # sudo setcap CAP_SYS_RAWIO=+ep /usr/bin/python3.8
             self._file = open(self._port, "wb")
         except (FileNotFoundError, PermissionError) as e:
             logger.error("Could not open the SCSI device: %s" % (e,))

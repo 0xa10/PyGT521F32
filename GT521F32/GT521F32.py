@@ -46,9 +46,13 @@ class GT521F32(object):
 
     @staticmethod
     def _choose_interface_type(port):
-        if any(port.startswith(_) for _ in ("COM", "/dev/tty")): # Any other path patterns?
+        if any(
+            port.startswith(_) for _ in ("COM", "/dev/tty")
+        ):  # Any other path patterns?
             return SerialInterface
-        elif port.startswith("/dev/sg") or (port[0].isalpha() and port[1] == ":" and len(port) == 2):
+        elif port.startswith("/dev/sg") or (
+            port[0].isalpha() and port[1] == ":" and len(port) == 2
+        ):
             return SCSIInterface
         raise GT521F32Exception("Could not derive interface type from port path")
 
@@ -59,7 +63,9 @@ class GT521F32(object):
             logger.debug("Chose interface type %r" % (interface_cls,))
             if baudrate is not None:
                 if interface_cls is not SerialInterface:
-                    raise GT521F32Exception("Baud rate can only be given for serial interfaces.")
+                    raise GT521F32Exception(
+                        "Baud rate can only be given for serial interfaces."
+                    )
                 self._interface = interface_cls(port=port, baudrate=baudrate)
             else:
                 self._interface = interface_cls(port=port)
