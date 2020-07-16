@@ -99,24 +99,24 @@ IOCTL_SCSI_PASS_THROUGH_DIRECT = CTL_CODE(
 )
 
 
-class WindowsSCSIException(Exception):
+class WindowsSCSIInterfaceException(Exception):
     pass
 
 
 class WindowsSCSIInterface(object):
-    def __init__(self, drive):
-        self._drive = drive
+    def __init__(self, port: str):
+        self._drive = port
 
-        self.is_open = False
+        self._open()
 
-    def open(self):
+    def _open(self):
         dos_drive_path = self._drive
         ddk_drive_path = "\\\\.\\%s" % (self._drive,)
 
         # Check drive type
         drive_type = GetDriveType(dos_drive_path)
         if drive_type not in (DRIVE_REMOVABLE, DRIVE_CDROM):
-            raise WindowsSCSIException("Drive type is incorrect.")
+            raise WindowsSCSIInterfaceException("Drive type is incorrect.")
 
         self._port_handle = win32.CreateFile(
             ddk_drive_path,
@@ -130,9 +130,7 @@ class WindowsSCSIInterface(object):
 
         if self._port_handle == win32.INVALID_HANDLE_VALUE:
             self._port_handle = None
-            raise WindowsSCSIException("Could not open drive.")
-
-        self.is_open = True
+            raise WindowsSCSIInterfaceException("Could not open drive.")
 
     def _scsi_operation(self, pbuf, size, read, timeout=10):
         sptdwb = SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER()
@@ -172,7 +170,7 @@ class WindowsSCSIInterface(object):
             win32.ERROR_SUCCESS,
             win32.ERROR_IO_PENDING,
         ):
-            raise WindowsSCSIException(
+            raise WindowsSCSIInterfaceException(
                 "DeviceIoControl failed ({!r})".format(ctypes.WinError())
             )
 
@@ -180,12 +178,12 @@ class WindowsSCSIInterface(object):
             SCSI_PASS_THROUGH_DIRECT.ScsiStatus.offset
             + SCSI_PASS_THROUGH_DIRECT.ScsiStatus.size
         ):
-            raise WindowsSCSIException(
+            raise WindowsSCSIInterfaceException(
                 "Not enough SCSI information returned to determine error"
             )
 
         if sptdwb.sptd.ScsiStatus != 0:
-            raise WindowsSCSIException(
+            raise WindowsSCSIInterfaceException(
                 "SCSI Operation returned %d" % (sptdwb.sptd.ScsiStatus,)
             )
 

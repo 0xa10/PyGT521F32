@@ -44,13 +44,25 @@ class GT521F32(object):
     _device_serial_number: Optional[str]
     _cancel: threading.Event
 
+    @staticmethod
+    def _choose_interface_type(port):
+        if any(port.startswith(_) for _ in ("COM", "/dev/tty")): # Any other path patterns?
+            return SerialInterface
+        elif port.startswith("/dev/sg") or (port[0].isalpha() and port[1] == ":" and len(port) == 2):
+            return SCSIInterface
+        raise GT521F32Exception("Could not derive interface type from port path")
+
     def __init__(self, port: str, baudrate: Optional[None] = None):
         self._port = port
         try:
+            interface_cls = GT521F32._choose_interface_type(port)
+            logger.debug("Chose interface type %r" % (interface_cls,))
             if baudrate is not None:
-                self._interface = SerialInterface(port=port, baudrate=baudrate)
+                if interface_cls is not SerialInterface:
+                    raise GT521F32Exception("Baud rate can only be given for serial interfaces.")
+                self._interface = interface_cls(port=port, baudrate=baudrate)
             else:
-                self._interface = SerialInterface(port=port)
+                self._interface = interface_cls(port=port)
         except InterfaceException as e:
             logger.error("Could not open the fingerprint device: %s" % (e,))
             raise GT521F32Exception("Failed to open the fingerprint device.")
