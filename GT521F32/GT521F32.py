@@ -285,6 +285,31 @@ class GT521F32(object):
 
         return parameter
 
+    def get_raw_image_safe(self) -> Optional[bytes]:
+        with self.led():  # Undocumented, but sensor crashes if led is off
+            return self._get_raw_image()
+
+    def _get_raw_image(self) -> Optional[bytes]:
+        # Do not call this with the led off
+        response_code, parameter = self.send_command("GET_RAWIMAGE", 0)
+        if response_code != packets.ACK_OK:
+            logger.error(
+                "GetRawImage error: %s"
+                % (packets.reverse(packets.response_error)[parameter],)
+            )
+            return
+
+        # read data response
+        logger.info("Downloading raw image...")
+        to_read = packets.GetRawImageDataPacket().byte_size()
+        response_bytes = self._interface.read(to_read)
+
+        get_raw_image_data_response, _ = packets.GetRawImageDataPacket.from_bytes(
+            response_bytes
+        )
+
+        return get_raw_image_data_response.raw_bitmap
+
     def get_image(self) -> Optional[bytes]:
         response_code, parameter = self.send_command("GET_IMAGE", 0)
         if response_code != packets.ACK_OK:
