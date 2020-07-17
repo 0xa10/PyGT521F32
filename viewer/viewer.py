@@ -1,74 +1,91 @@
-import signal
 import sys
 import time
-from PyQt5.QtCore import QThread, Qt, pyqtSignal, pyqtSlot
-from PyQt5.QtWidgets import QApplication, QWidget, QLabel
-from PyQt5.QtGui import QIcon, QPixmap, QImage
 
-import threading
-import PIL
+import argparse
+import PIL.ImageTk
 import PIL.Image
-from PIL.ImageQt import ImageQt
+import tkinter
+import threading
 
 import GT521F32
 
-
-class ViewerThread(QThread):
-	set_image = pyqtSignal(QImage)
-	_cancel: threading.Event
-
-	def __init__(self, parent, reader):
-		super().__init__(parent)
-		self._reader = reader
-		self._cancel = threading.Event()
-
-	def run(self):
-		with self._reader.led():
-			while not self._cancel.is_set():
-				time.sleep(1.0 / 25)  # 25 fps
-				data = self._reader._get_raw_image()
-				if data:
-					img = PIL.Image.frombytes("L", (160, 120), data, "raw")
-					self.set_image.emit(ImageQt(img))
+from typing import Tuple, ClassVar
 
 
-class Viewer(QWidget):
-	def __init__(self, reader):
-		super().__init__()
-		self._reader = reader
-		self.left = 10
-		self.top = 10
-		self.width = 640
-		self.height = 480
-		self.initUI()
+class GT521F32Viewer(object):
+    _FRAME_RATE: ClassVar[int] = 24
+    _DIMENSIONS: Tuple[int, int] = (
+        160,
+        120,
+    )  # Might be better to retrieve this from reader
 
-	def initUI(self):
-		self.setWindowTitle("GT521F32")
-		self.setGeometry(self.left, self.top, self.width, self.height)
+    _root: tkinter.Tk
+    _image_panel: tkinter.Label
+    _reader: GT521F32.GT521F32
+    _scale_factor: int
+    _stop: bool
 
-		self._thread = ViewerThread(self, self._reader)
-		self._thread.set_image.connect(self.set_image)
+    def __init__(self, reader: GT521F32.GT521F32, scale_factor: int = 1):
+        self._reader = reader
+        self._scale_factor = scale_factor
 
-		self.label = QLabel(self)
-		self.label.resize(160*3, 120*3)
-		self.resize(160*3, 120*3)
-		self._thread.start()
-		self.show()
+        self._stop = False
 
-	@pyqtSlot(QImage)
-	def set_image(self, img):
-		self.label.setPixmap(QPixmap.fromImage(img).scaled(160*3, 120*3))
+        self._root = tkinter.Tk()
+        self._image_panel = tkinter.Label(self._root)
+        self._image_panel.pack(padx=0, pady=0)
 
-	def closeEvent(self, event):
-		self._thread._cancel.set()
-		self._thread.wait()
-		event.accept()
-		
+        self._root.title("GT521F32")
+        self._root.geometry(
+            "%dx%d" % tuple(_ * scale_factor for _ in GT521F32Viewer._DIMENSIONS)
+        )
+        self._root.resizable(0, 0)
+        self._root.wm_protocol("WM_DELETE_WINDOW", self.stop)
+
+    def _video_loop(self):
+        data = self._reader._get_raw_image()
+        if data:
+            image = PIL.Image.frombytes("L", self._DIMENSIONS, data, "raw")
+            self._update(image)
+
+        if not self._stop:
+            self._root.after(1_000 // GT521F32Viewer._FRAME_RATE, self._video_loop)
+
+    def start(self):
+        self._reader.set_led(True)
+        self._root.after(1_000 // GT521F32Viewer._FRAME_RATE, self._video_loop)
+        self._root.mainloop()
+
+    def _update(self, image: PIL.ImageTk.PhotoImage):
+        if self._scale_factor != 1:
+            image = image.resize(
+                (
+                    int(image.width * self._scale_factor),
+                    int(image.height * self._scale_factor),
+                )
+            )
+        # To avoid undue GC
+        self._image_tk = PIL.ImageTk.PhotoImage(image)
+        self._image_panel.config(image=self._image_tk)
+
+    def stop(self):
+        self._stop = True
+        self._reader.set_led(False)
+        self._root.quit()
 
 
 def main():
-	signal.signal(signal.SIGINT, signal.SIG_DFL) # Exit on Ctrl C
-	app = QApplication(sys.argv)
-	ex = Viewer(GT521F32.GT521F32(sys.argv[1]))
-	ex.show()
-	sys.exit(app.exec_())
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-d", "--device", required=True, help="Path to GT521F32 device")
+    parser.add_argument(
+        "-f", "--scale_factor", type=int, default=1.5, help="Image scaling factor."
+    )
+    args = parser.parse_args()
+
+    try:
+        v = GT521F32Viewer(GT521F32.GT521F32(args.device), args.scale_factor)
+        v.start()
+    except GT521F32.GT521F32Exception:
+        print("Could not open fingerprint device.")
+    except (KeyboardInterrupt, InterruptedError):
+        v.stop()
