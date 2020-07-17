@@ -1,5 +1,7 @@
-import struct
+import ctypes
 import io
+import struct
+
 from collections import OrderedDict
 
 reverse = lambda x: {v: k for k, v in x.items()}
@@ -191,6 +193,80 @@ class DataPacket(Packet):
     @property
     def data(self):
         return self._fields["Data"][1]
+
+
+Sensor = lambda x: ("B" * 12, x)
+EngineVersion = lambda x: ("B" * 12, x)
+RawImgWidth = lambda x: ("<H", x)
+RawImgHeight = lambda x: ("<H", x)
+ImgWidth = lambda x: ("<H", x)
+ImgHeight = lambda x: ("<H", x)
+EnrollCount = lambda x: ("<H", x)
+MaxRecordCount = lambda x: ("<H", x)
+TemplateSize = lambda x: ("<H", x)
+
+
+class ModuleInfoDataPacket(Packet):
+    def __init__(
+        self,
+        sensor=b" " * 12,
+        engine_version=b" " * 12,
+        raw_img_width=0,
+        raw_img_height=0,
+        img_width=0,
+        img_height=0,
+        max_record_count=0,
+        enroll_count=0,
+        template_size=0,
+    ):
+        super().__init__()
+        self._fields["Sensor"] = Sensor(sensor)
+        self._fields["EngineVersion"] = EngineVersion(engine_version)
+        self._fields["RawImgWidth"] = RawImgWidth(raw_img_width)
+        self._fields["RawImgHeight"] = RawImgHeight(raw_img_height)
+        self._fields["ImgWidth"] = ImgWidth(img_width)
+        self._fields["ImgHeight"] = ImgHeight(img_height)
+        self._fields["MaxRecordCount"] = MaxRecordCount(max_record_count)
+        self._fields["EnrollCount"] = EnrollCount(enroll_count)
+        self._fields["TemplateSize"] = TemplateSize(TemplateSize)
+
+    @property
+    def sensor(self):
+        data = bytes(self._fields["Sensor"][1])
+        return ctypes.create_string_buffer(data).value.decode("latin-1")
+
+    @property
+    def engine_version(self):
+        data = bytes(self._fields["EngineVersion"][1])
+        return ctypes.create_string_buffer(data).value.decode("latin-1")
+
+    @property
+    def raw_img_width(self):
+        return self._fields["RawImgWidth"][1][0]
+
+    @property
+    def raw_img_height(self):
+        return self._fields["RawImgHeight"][1][0]
+
+    @property
+    def img_width(self):
+        return self._fields["ImgWidth"][1][0]
+
+    @property
+    def img_height(self):
+        return self._fields["ImgHeight"][1][0]
+
+    @property
+    def max_record_count(self):
+        return self._fields["MaxRecordCount"][1][0]
+
+    @property
+    def enroll_count(self):
+        return self._fields["EnrollCount"][1][0]
+
+    @property
+    def template_size(self):
+        return self._fields["TemplateSize"][1][0]
 
 
 FirmwareVersion = lambda x: ("<L", x)

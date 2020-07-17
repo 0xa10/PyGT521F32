@@ -60,7 +60,7 @@ class GT521F32(object):
         self._port = port
         try:
             interface_cls = GT521F32._choose_interface_type(port)
-            logger.debug("Chose interface type %r" % (interface_cls,))
+            logger.debug("Chose interface type %s" % (interface_cls.__name__,))
             if baudrate is not None:
                 if interface_cls is not SerialInterface:
                     raise GT521F32Exception(
@@ -172,6 +172,41 @@ class GT521F32(object):
             self.device_serial_number,
         )
 
+    def module_info(self) -> Tuple[str, str, int, int, int, int, int, int]:
+        response_code, parameter = self.send_command("MODULE_INFO", 0)
+
+        # read data response
+        to_read = parameter + packets.DataPacket().byte_size()
+        response_bytes = self._interface.read(to_read)
+
+        module_info_known_size = packets.ModuleInfoDataPacket().byte_size()
+        if to_read > module_info_known_size:
+            logger.error("Module info returned more bytes than expected.")
+
+        module_info_packet, _ = packets.ModuleInfoDataPacket.from_bytes(response_bytes)
+
+        logger.info("Sensor: %s" % (module_info_packet.sensor,))
+        logger.info("Engine Version: %s" % (module_info_packet.engine_version,))
+        logger.info("Raw Image Width: %s" % (module_info_packet.raw_img_width,))
+        logger.info("Raw Image Height: %s" % (module_info_packet.raw_img_height,))
+        logger.info("Image Height: %s" % (module_info_packet.img_width,))
+        logger.info("Image Width: %s" % (module_info_packet.img_height,))
+        logger.info("Max record count: %s" % (module_info_packet.max_record_count,))
+        logger.info("Enroll count: %s" % (module_info_packet.enroll_count,))
+        logger.info("Template size: %s" % (module_info_packet.template_size,))
+
+        return (
+            module_info_packet.sensor,
+            module_info_packet.engine_version,
+            module_info_packet.raw_img_width,
+            module_info_packet.raw_img_height,
+            module_info_packet.img_width,
+            module_info_packet.img_height,
+            module_info_packet.max_record_count,
+            module_info_packet.enroll_count,
+            module_info_packet.template_size,
+        )
+
     def __delete__(self) -> None:
         self.close()
 
@@ -281,7 +316,7 @@ class GT521F32(object):
         # Cannot fail
         _, _ = self.send_command("CMOS_LED", int(onoff))
 
-    def capture(self, best_image: bool = False) -> None:
+    def capture(self, best_image: bool = False) -> bool:
         assert type(best_image) is bool
         response_code, parameter = self.send_command("CAPTURE", int(best_image))
         if response_code != packets.ACK_OK:
@@ -289,6 +324,9 @@ class GT521F32(object):
                 "Capture error: %s"
                 % (packets.reverse(packets.response_error)[parameter],)
             )
+            return False
+
+        return True
 
     def get_enrolled_count(self) -> None:
         # Supposedly this cannot fail?
