@@ -307,3 +307,16 @@ class GetImageDataPacket(Packet):
     @property
     def bitmap(self):
         return bytes(self._fields["Bitmap"][1])
+
+
+RawBitmap = lambda x: ("19200B", x)
+
+
+class GetRawImageDataPacket(Packet):
+    def __init__(self, raw_bitmap=b"" * 19200):
+        super().__init__()
+        self._fields["RawBitmap"] = RawBitmap(raw_bitmap)
+
+    @property
+    def raw_bitmap(self):
+        return bytes(self._fields["RawBitmap"][1])
