@@ -1,6 +1,7 @@
 [[package]]
 category = "main"
 description = "Cython-based wrapper for sending SCSI Generic I/O commands from Python."
+marker = "sys_platform == \"linux\""
 name = "cython-sgio"
 optional = false
 python-versions = "*"
@@ -26,7 +27,7 @@ python-versions = "*"
 version = "3.4"
 
 [metadata]
-content-hash = "0081b8d5f128370274c66b6dbb168f1fa6dd6c4686f0c84b0bc3cb7672042f19"
+content-hash = "77fe5c07ab075f32efb2c461057f50d642731fd3720706c66262eeb50fcab41b"
 python-versions = "^3.8"
 
 [metadata.files]
