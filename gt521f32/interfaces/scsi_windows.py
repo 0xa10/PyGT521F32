@@ -1,3 +1,4 @@
+# pylint: disable=bad-continuation # Black and pylint disagree on this
 # pylint: disable=missing-module-docstring
 # pylint: disable=missing-class-docstring
 # pylint: disable=missing-function-docstring
@@ -58,7 +59,7 @@ DeviceIoControl.argtypes = [
 
 
 class SCSI_PASS_THROUGH_DIRECT(
-        ctypes.Structure
+    ctypes.Structure
 ):  # pylint: disable=invalid-name, too-few-public-methods
     pass
 
@@ -81,7 +82,7 @@ SCSI_PASS_THROUGH_DIRECT._fields_ = [  # pylint: disable=protected-access
 
 
 class SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER(
-        ctypes.Structure
+    ctypes.Structure
 ):  # pylint: disable=invalid-name, too-few-public-methods
     pass
 
@@ -180,16 +181,16 @@ class WindowsSCSIInterface:
         )
 
         if not result_ok and win32.GetLastError() not in (
-                win32.ERROR_SUCCESS,
-                win32.ERROR_IO_PENDING,
+            win32.ERROR_SUCCESS,
+            win32.ERROR_IO_PENDING,
         ):
             raise WindowsSCSIInterfaceException(
                 "DeviceIoControl failed ({!r})".format(ctypes.WinError())
             )
 
         if returned.value < (
-                SCSI_PASS_THROUGH_DIRECT.ScsiStatus.offset
-                + SCSI_PASS_THROUGH_DIRECT.ScsiStatus.size
+            SCSI_PASS_THROUGH_DIRECT.ScsiStatus.offset
+            + SCSI_PASS_THROUGH_DIRECT.ScsiStatus.size
         ):
             raise WindowsSCSIInterfaceException(
                 "Not enough SCSI information returned to determine error"

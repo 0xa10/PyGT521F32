@@ -1,3 +1,4 @@
+# pylint: disable=bad-continuation # Black and pylint disagree on this
 # pylint: disable=missing-module-docstring
 # pylint: disable=missing-class-docstring
 # pylint: disable=missing-function-docstring
@@ -25,9 +26,9 @@ class LinuxSCSIInterface:
             # The CAP_SYS_RAWIO capability is required to communicate over SGIO
             # sudo setcap CAP_SYS_RAWIO=+ep /usr/bin/python3.8
             self._file = open(self._port, "wb")
-        except ( # pylint: disable=invalid-name
-                FileNotFoundError,
-                PermissionError,
+        except (  # pylint: disable=invalid-name
+            FileNotFoundError,
+            PermissionError,
         ) as e:
             logger.error("Could not open the SCSI device: %s", e)
             raise LinuxSCSIInterfaceException(e)

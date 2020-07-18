@@ -1,3 +1,4 @@
+# pylint: disable=bad-continuation # Black and pylint disagree on this
 # pylint: disable=missing-module-docstring
 # pylint: disable=missing-class-docstring
 # pylint: disable=missing-function-docstring
@@ -122,7 +123,9 @@ class Packet:
         return field_bytes + struct.pack(checksum_field, *checksum_content)
 
     @staticmethod
-    def from_bytes_static(cls, input_bytes): # pylint: disable=bad-staticmethod-argument
+    def from_bytes_static(
+        cls, input_bytes
+    ):  # pylint: disable=bad-staticmethod-argument
         instance = cls()
         byte_stream = io.BytesIO(input_bytes)
         for key, (field, _) in instance._fields.items():
@@ -225,16 +228,16 @@ TemplateSize = lambda x: ("<H", x)
 
 class ModuleInfoDataPacket(Packet):
     def __init__(  # pylint: disable=too-many-arguments
-            self,
-            sensor: Optional[bytes] = b" " * 12,
-            engine_version: Optional[bytes] = b" " * 12,
-            raw_img_width: Optional[int] = 0,
-            raw_img_height: Optional[int] = 0,
-            img_width: Optional[int] = 0,
-            img_height: Optional[int] = 0,
-            max_record_count: Optional[int] = 0,
-            enroll_count: Optional[int] = 0,
-            template_size: Optional[int] = 0,
+        self,
+        sensor: Optional[bytes] = b" " * 12,
+        engine_version: Optional[bytes] = b" " * 12,
+        raw_img_width: Optional[int] = 0,
+        raw_img_height: Optional[int] = 0,
+        img_width: Optional[int] = 0,
+        img_height: Optional[int] = 0,
+        max_record_count: Optional[int] = 0,
+        enroll_count: Optional[int] = 0,
+        template_size: Optional[int] = 0,
     ):
         super().__init__()
         self._fields["Sensor"] = Sensor(sensor)
@@ -290,6 +293,7 @@ class ModuleInfoDataPacket(Packet):
         # Terrible hack for making lint happy
         return Packet.from_bytes_static(cls, input_bytes)
 
+
 FirmwareVersion = lambda x: ("<L", x)
 IsoAreaMaxSize = lambda x: ("<L", x)
 DeviceSerialNumber = lambda x: ("B" * 16, x)
@@ -297,7 +301,7 @@ DeviceSerialNumber = lambda x: ("B" * 16, x)
 
 class OpenDataPacket(Packet):
     def __init__(
-            self, firmware_version=0, iso_area_max_size=0, device_serial_number=b"0" * 16
+        self, firmware_version=0, iso_area_max_size=0, device_serial_number=b"0" * 16
     ):
         super().__init__()
         self._fields["FirmwareVersion"] = FirmwareVersion(firmware_version)

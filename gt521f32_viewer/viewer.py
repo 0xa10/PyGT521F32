@@ -1,3 +1,4 @@
+# pylint: disable=bad-continuation # Black and pylint disagree on this
 # pylint: disable=missing-class-docstring
 # pylint: disable=missing-function-docstring
 # pylint: disable=missing-module-docstring
