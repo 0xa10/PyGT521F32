@@ -1,19 +1,19 @@
-import sys
-import time
-
+# pylint: disable=bad-continuation # Black and pylint disagree on this
+# pylint: disable=missing-class-docstring
+# pylint: disable=missing-function-docstring
+# pylint: disable=missing-module-docstring
 import argparse
-import PIL.ImageTk
-import PIL.Image
 import tkinter
-import threading
-
-import GT521F32
-
 from typing import Tuple, ClassVar
 
+import PIL.ImageTk  # type: ignore
+import PIL.Image  # type: ignore
 
-class GT521F32Viewer(object):
-    _FRAME_RATE: ClassVar[int] = 24
+import gt521f32
+
+
+class GT521F32Viewer:
+    _FRAME_RATE: ClassVar[int] = 25
     _DIMENSIONS: Tuple[int, int] = (
         160,
         120,
@@ -21,11 +21,12 @@ class GT521F32Viewer(object):
 
     _root: tkinter.Tk
     _image_panel: tkinter.Label
-    _reader: GT521F32.GT521F32
+    _reader: gt521f32.GT521F32
     _scale_factor: int
     _stop: bool
+    _image_tk: PIL.ImageTk.PhotoImage = None
 
-    def __init__(self, reader: GT521F32.GT521F32, scale_factor: int = 1):
+    def __init__(self, reader: gt521f32.GT521F32, scale_factor: int = 1):
         self._reader = reader
         self._scale_factor = scale_factor
 
@@ -43,7 +44,7 @@ class GT521F32Viewer(object):
         self._root.wm_protocol("WM_DELETE_WINDOW", self.stop)
 
     def _video_loop(self):
-        data = self._reader._get_raw_image()
+        data = self._reader._get_raw_image()  # pylint: disable=protected-access
         if data:
             image = PIL.Image.frombytes("L", self._DIMENSIONS, data, "raw")
             self._update(image)
@@ -56,7 +57,11 @@ class GT521F32Viewer(object):
         self._root.after(1_000 // GT521F32Viewer._FRAME_RATE, self._video_loop)
         self._root.mainloop()
 
+<<<<<<< HEAD
     def _update(self, image: PIL.Image.Image):
+=======
+    def _update(self, image: PIL.ImageTk.PhotoImage):
+>>>>>>> 75f40204c7795d54d62b0e855a0563505a78f098
         if self._scale_factor != 1:
             image = image.resize(
                 (
@@ -83,9 +88,9 @@ def main():
     args = parser.parse_args()
 
     try:
-        v = GT521F32Viewer(GT521F32.GT521F32(args.device), args.scale_factor)
-        v.start()
-    except GT521F32.GT521F32Exception:
+        viewer = GT521F32Viewer(gt521f32.GT521F32(args.device), args.scale_factor)
+        viewer.start()
+    except gt521f32.GT521F32Exception:
         print("Could not open fingerprint device.")
     except (KeyboardInterrupt, InterruptedError):
-        v.stop()
+        viewer.stop()
