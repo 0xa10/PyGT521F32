@@ -1,27 +1,28 @@
-from . import packets
-from .interfaces import SCSIInterface, SerialInterface, InterfaceException
-
+# pylint: disable=missing-module-docstring
+# pylint: disable=missing-class-docstring
+# pylint: disable=missing-function-docstring
+# pylint: disable=too-many-public-methods
 import logging
 import contextlib
 import threading
 import time
-import os
-import PIL
-import PIL.Image
-import functools
-
-from typing import ContextManager, Optional, Callable, TypeVar, Tuple, ClassVar, Union
-
-logger = logging.getLogger(__name__)
-
-RT = TypeVar("RT")
+from typing import ContextManager, Optional, Callable, Tuple, ClassVar, Union, Type
+import PIL  # type: ignore
+import PIL.Image  # type: ignore
 
 
-def retry_three_times(func: Callable[..., RT]) -> Callable[..., RT]:
-    def wrapper(*args, **kwargs) -> RT:
-        for _ in range(3):
+from . import packets
+from .interfaces import SCSIInterface, SerialInterface, InterfaceException
+
+logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
+
+
+def retry(func: Callable[..., bool], count: int = 3) -> Callable[..., bool]:
+    def wrapper(*args, **kwargs) -> bool:
+        for _ in range(count):
             if func(*args, **kwargs):
                 return True
+        return False
 
     return wrapper
 
@@ -35,32 +36,35 @@ class GT521F32Exception(Exception):
     pass
 
 
-class GT521F32(object):
-    _PROMPT_INTERVAL: ClassVar[int] = 0.1
+class GT521F32:
+    _PROMPT_INTERVAL: ClassVar[float] = 0.1
     _port: str
     _interface: Union[SerialInterface, SCSIInterface]
-    _firmware_version: Optional[str]
-    _iso_area_max_size: Optional[int]
-    _device_serial_number: Optional[str]
+    _firmware_version: Optional[str] = None
+    _iso_area_max_size: Optional[int] = None
+    _device_serial_number: Optional[str] = None
     _cancel: threading.Event
 
     @staticmethod
-    def _choose_interface_type(port):
+    def _choose_interface_type(
+            port,
+    ) -> Union[Type[SerialInterface], Type[SCSIInterface]]:
         if any(
-            port.startswith(_) for _ in ("COM", "/dev/tty")
+                port.startswith(_) for _ in ("COM", "/dev/tty")
         ):  # Any other path patterns?
             return SerialInterface
-        elif port.startswith("/dev/sg") or (
-            port[0].isalpha() and port[1] == ":" and len(port) == 2
+        if port.startswith("/dev/sg") or (
+                port[0].isalpha() and port[1] == ":" and len(port) == 2
         ):
             return SCSIInterface
+
         raise GT521F32Exception("Could not derive interface type from port path")
 
     def __init__(self, port: str, baudrate: Optional[None] = None):
         self._port = port
         try:
             interface_cls = GT521F32._choose_interface_type(port)
-            logger.debug("Chose interface type %s" % (interface_cls.__name__,))
+            logger.debug("Chose interface type %s", interface_cls.__name__)
             if baudrate is not None:
                 if interface_cls is not SerialInterface:
                     raise GT521F32Exception(
@@ -69,17 +73,14 @@ class GT521F32(object):
                 self._interface = interface_cls(port=port, baudrate=baudrate)
             else:
                 self._interface = interface_cls(port=port)
-        except InterfaceException as e:
-            logger.error("Could not open the fingerprint device: %s" % (e,))
+        except InterfaceException as e:  # pylint: disable=invalid-name
+            logger.error("Could not open the fingerprint device: %s", e)
             raise GT521F32Exception("Failed to open the fingerprint device.")
-
-        self._firmware_version = None
-        self._iso_area_max_size = None
-        self._device_serial_number = None
 
         self._cancel = threading.Event()
 
-    def _delay(self, seconds: int) -> None:
+    @staticmethod
+    def _delay(seconds: float) -> None:
         time.sleep(seconds)
 
     def send_command(self, command: str, parameter: int) -> Tuple[int, int]:
@@ -105,13 +106,14 @@ class GT521F32(object):
 
         if not response_packet.ok:
             logger.debug(
-                "Command responded with code %x and error %04x"
-                % (response_packet.response_code, response_packet.parameter)
+                "Command responded with code %x and error %04x",
+                response_packet.response_code,
+                response_packet.parameter,
             )
 
         return response_packet.response_code, response_packet.parameter
 
-    def usb_internal_check(self) -> True:
+    def usb_internal_check(self) -> None:
         _, _ = self.send_command("USB_INTERNAL_CHECK", 0)
 
     def change_baud_rate(self, baudrate: int) -> None:
@@ -120,15 +122,16 @@ class GT521F32(object):
         response_code, parameter = self.send_command("CHANGE_BAUDRATE", baudrate)
         if response_code != packets.ACK_OK:
             logger.error(
-                "ChangeBaudRate error: %s"
-                % (packets.reverse(packets.response_error)[parameter],)
+                "ChangeBaudRate error: %s",
+                packets.reverse(packets.response_error)[parameter],
             )
 
     def change_baud_rate_and_reopen(self, baudrate: int) -> None:
         # We can send the command and it wont do any harm, but we dont want the
-        # interface to be reopened, so unless we are already using a serial interface, do not proceed
-        if type(self._interface) is not SerialInterface:
-            raise NotImplemented(
+        # interface to be reopened, so unless we are already using a
+        # serial interface, do not proceed
+        if not isinstance(self._interface, SerialInterface):
+            raise NotImplementedError(
                 "Baud-rate not supported for interface type %s"
                 % (type(self._interface),)
             )
@@ -162,9 +165,9 @@ class GT521F32(object):
             open_data_response.device_serial_number,
         )
 
-        logger.info("Firmware version: %s" % (open_data_response.firmware_version,))
-        logger.info("Iso area max size: %s" % (open_data_response.iso_area_max_size,))
-        logger.info("Serial number: %s" % (open_data_response.device_serial_number,))
+        logger.info("Firmware version: %s", open_data_response.firmware_version)
+        logger.info("Iso area max size: %s", open_data_response.iso_area_max_size)
+        logger.info("Serial number: %s", open_data_response.device_serial_number)
 
         return (
             self.firmware_version,
@@ -172,8 +175,8 @@ class GT521F32(object):
             self.device_serial_number,
         )
 
-    def module_info(self) -> Tuple[str, str, int, int, int, int, int, int]:
-        response_code, parameter = self.send_command("MODULE_INFO", 0)
+    def module_info(self) -> Tuple[str, str, int, int, int, int, int, int, int]:
+        _, parameter = self.send_command("MODULE_INFO", 0)
 
         # read data response
         to_read = parameter + packets.DataPacket().byte_size()
@@ -185,15 +188,15 @@ class GT521F32(object):
 
         module_info_packet, _ = packets.ModuleInfoDataPacket.from_bytes(response_bytes)
 
-        logger.info("Sensor: %s" % (module_info_packet.sensor,))
-        logger.info("Engine Version: %s" % (module_info_packet.engine_version,))
-        logger.info("Raw Image Width: %s" % (module_info_packet.raw_img_width,))
-        logger.info("Raw Image Height: %s" % (module_info_packet.raw_img_height,))
-        logger.info("Image Height: %s" % (module_info_packet.img_width,))
-        logger.info("Image Width: %s" % (module_info_packet.img_height,))
-        logger.info("Max record count: %s" % (module_info_packet.max_record_count,))
-        logger.info("Enroll count: %s" % (module_info_packet.enroll_count,))
-        logger.info("Template size: %s" % (module_info_packet.template_size,))
+        logger.info("Sensor: %s", module_info_packet.sensor)
+        logger.info("Engine Version: %s", module_info_packet.engine_version)
+        logger.info("Raw Image Width: %s", module_info_packet.raw_img_width)
+        logger.info("Raw Image Height: %s", module_info_packet.raw_img_height)
+        logger.info("Image Height: %s", module_info_packet.img_width)
+        logger.info("Image Width: %s", module_info_packet.img_height)
+        logger.info("Max record count: %s", module_info_packet.max_record_count)
+        logger.info("Enroll count: %s", module_info_packet.enroll_count)
+        logger.info("Template size: %s", module_info_packet.template_size)
 
         return (
             module_info_packet.sensor,
@@ -207,13 +210,12 @@ class GT521F32(object):
             module_info_packet.template_size,
         )
 
-    def __delete__(self) -> None:
+    def __del__(self) -> None:
         self.close()
 
     def close(self) -> None:
-        if False:
-            # does nothing
-            self.send_command("CLOSE", 0)
+        # does nothing
+        self.send_command("CLOSE", 0)
         self.change_baud_rate(9600)
         self._interface.close()
 
@@ -221,53 +223,54 @@ class GT521F32(object):
         response_code, parameter = self.send_command("ENROLL_START", user_id)
         if response_code != packets.ACK_OK:
             logger.error(
-                "EnrollStart error: %s"
-                % (packets.reverse(packets.response_error)[parameter],)
+                "EnrollStart error: %s",
+                packets.reverse(packets.response_error)[parameter],
             )
             return False
         return True
 
-    @retry_three_times
-    def enroll_n(self, n: int, save_enroll_photos: bool = False) -> bool:
+    @retry
+    def enroll_n( # pylint: disable=invalid-name
+            self, n: int, save_enroll_photos: bool = False
+    ) -> bool:
         self.prompt_finger_and_capture()
 
         if save_enroll_photos:
             # Save image before proceeding
             out_path = "Enroll%d.bmp" % (n,)
-            logger.info("Saving Enroll%d to %s" % (n, out_path))
-            save_bitmap_to_file(out_path, self.get_image())
+            logger.info("Saving Enroll%d to %s", n, out_path)
+            bitmap = self.get_image()
+            if bitmap:
+                save_bitmap_to_file(out_path, bitmap)
+            else:
+                logger.error("Could not save image for current enroll cycle.")
 
         response_code, parameter = self.send_command("ENROLL%d" % (n,), 0)
         if response_code != packets.ACK_OK:
             error_code = packets.reverse(packets.response_error).get(parameter, None)
             if error_code is None:
-                logger.error(
-                    "Enroll%d error: %s" % (n, "Duplicate ID: %d" % (parameter,))
-                )
+                logger.error("Enroll%d error: %s", n, f"Duplicate ID: {parameter}")
                 return True  # fast fail
 
-            logger.error("Enroll%d error: %s" % (n, error_code))
+            logger.error("Enroll%d error: %s", n, error_code)
             return False  # Will lead to retry
 
-        logger.debug("Enroll%d succeeded." % (n,))
+        logger.debug("Enroll%d succeeded.", n)
         return True
 
     def enroll_user(self, user_id: int, save_enroll_photos: bool = False) -> bool:
-        attempts = 0
         if not self.enroll_start(user_id):
             return False
 
         for i in range(1, 4):
             with self.prompt_finger():
                 if not self.enroll_n(
-                    i, save_enroll_photos
+                        i, save_enroll_photos
                 ):  # Not sure why this only works when reentering
-                    logger.debug(
-                        "Enrollment for user id %d failed, aborting." % (user_id,)
-                    )
+                    logger.debug("Enrollment for user id %d failed, aborting.", user_id)
                     break
         else:
-            logger.debug("Enroll user id: %d succeeded." % (user_id,))
+            logger.debug("Enroll user id: %d succeeded.", user_id)
             return True
 
         return False
@@ -278,8 +281,7 @@ class GT521F32(object):
         response_code, parameter = self.send_command("IDENTIFY", 0)
         if response_code != packets.ACK_OK:
             logger.error(
-                "Identify error: %s"
-                % (packets.reverse(packets.response_error)[parameter],)
+                "Identify error: %s", packets.reverse(packets.response_error)[parameter]
             )
             return None
 
@@ -294,10 +296,10 @@ class GT521F32(object):
         response_code, parameter = self.send_command("GET_RAWIMAGE", 0)
         if response_code != packets.ACK_OK:
             logger.error(
-                "GetRawImage error: %s"
-                % (packets.reverse(packets.response_error)[parameter],)
+                "GetRawImage error: %s",
+                packets.reverse(packets.response_error)[parameter],
             )
-            return
+            return None
 
         # read data response
         logger.info("Downloading raw image...")
@@ -314,10 +316,9 @@ class GT521F32(object):
         response_code, parameter = self.send_command("GET_IMAGE", 0)
         if response_code != packets.ACK_OK:
             logger.error(
-                "GetImage error: %s"
-                % (packets.reverse(packets.response_error)[parameter],)
+                "GetImage error: %s", packets.reverse(packets.response_error)[parameter]
             )
-            return
+            return None
 
         # read data response
         logger.info("Downloading image...")
@@ -330,30 +331,29 @@ class GT521F32(object):
 
         return get_image_data_response.bitmap
 
-    @contextlib.contextmanager
-    def led(self) -> ContextManager[None]:
+    @contextlib.contextmanager  # type: ignore
+    def led(self) -> ContextManager[None]:  # type: ignore
         self.set_led(True)
-        yield
+        yield None
         self.set_led(False)
 
     def set_led(self, onoff: bool) -> None:
-        assert type(onoff) is bool
+        assert isinstance(onoff, bool)
         # Cannot fail
         _, _ = self.send_command("CMOS_LED", int(onoff))
 
     def capture(self, best_image: bool = False) -> bool:
-        assert type(best_image) is bool
+        assert isinstance(best_image, bool)
         response_code, parameter = self.send_command("CAPTURE", int(best_image))
         if response_code != packets.ACK_OK:
             logger.error(
-                "Capture error: %s"
-                % (packets.reverse(packets.response_error)[parameter],)
+                "Capture error: %s", packets.reverse(packets.response_error)[parameter]
             )
             return False
 
         return True
 
-    def get_enrolled_count(self) -> None:
+    def get_enrolled_count(self) -> int:
         # Supposedly this cannot fail?
         _, parameter = self.send_command("ENROLL_COUNT", 0)
         return parameter
@@ -362,8 +362,9 @@ class GT521F32(object):
         response_code, parameter = self.send_command("CHECK_ENROLLED", user_id)
         if response_code != packets.ACK_OK:
             logger.error(
-                "CheckEnroll %d error: %s"
-                % (user_id, packets.reverse(packets.response_error)[parameter])
+                "CheckEnroll %d error: %s",
+                user_id,
+                packets.reverse(packets.response_error)[parameter],
             )
             return False
         return True
@@ -372,8 +373,9 @@ class GT521F32(object):
         response_code, parameter = self.send_command("DELETE_ID", user_id)
         if response_code != packets.ACK_OK:
             logger.error(
-                "DeleteID %d error: %s"
-                % (user_id, packets.reverse(packets.response_error)[parameter])
+                "DeleteID %d error: %s",
+                user_id,
+                packets.reverse(packets.response_error)[parameter],
             )
             return False
 
@@ -383,8 +385,8 @@ class GT521F32(object):
         response_code, parameter = self.send_command("DELETE_ALL", 0)
         if response_code != packets.ACK_OK:
             logger.error(
-                "DeleteAll error: %s"
-                % (packets.reverse(packets.response_error)[parameter],)
+                "DeleteAll error: %s",
+                packets.reverse(packets.response_error)[parameter],
             )
             return False
 
@@ -396,8 +398,9 @@ class GT521F32(object):
         response_code, parameter = self.send_command("VERIFY", user_id)
         if response_code != packets.ACK_OK:
             logger.error(
-                "Verify %d error: %s"
-                % (user_id, packets.reverse(packets.response_error)[parameter])
+                "Verify %d error: %s",
+                user_id,
+                packets.reverse(packets.response_error)[parameter],
             )
             return False
 
@@ -405,15 +408,17 @@ class GT521F32(object):
 
     def save_image_to_bmp(self, path: str) -> None:
         self.prompt_finger_and_capture()
-        save_bitmap_to_file(path, self.get_image())
+        bitmap = self.get_image()
+        if bitmap:
+            save_bitmap_to_file(path, bitmap)
 
     # Utitilies
     def is_finger_pressed(self) -> bool:
         response_code, parameter = self.send_command("IS_PRESS_FINGER", 0)
         if response_code != packets.ACK_OK:
             logger.error(
-                "Verify %d error: %s"
-                % (user_id, packets.reverse(packets.response_error)[parameter])
+                "IsFingerPressed error: %s",
+                packets.reverse(packets.response_error)[parameter],
             )
             return False
         return not bool(parameter)
@@ -433,8 +438,8 @@ class GT521F32(object):
         with self.prompt_finger():
             self.capture()
 
-    @contextlib.contextmanager
-    def prompt_finger(self) -> ContextManager[None]:
+    @contextlib.contextmanager  # type: ignore
+    def prompt_finger(self) -> ContextManager[None]:  # type: ignore
         with self.led():
             self.wait_for_finger_press(self._PROMPT_INTERVAL)
             yield

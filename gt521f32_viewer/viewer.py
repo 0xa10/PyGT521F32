@@ -2,18 +2,18 @@ import sys
 import time
 
 import argparse
-import PIL.ImageTk
-import PIL.Image
+import PIL.ImageTk # type: ignore
+import PIL.Image # type: ignore
 import tkinter
 import threading
 
-import GT521F32
+import gt521f32
 
 from typing import Tuple, ClassVar
 
 
 class GT521F32Viewer(object):
-    _FRAME_RATE: ClassVar[int] = 24
+    _FRAME_RATE: ClassVar[int] = 25
     _DIMENSIONS: Tuple[int, int] = (
         160,
         120,
@@ -21,11 +21,11 @@ class GT521F32Viewer(object):
 
     _root: tkinter.Tk
     _image_panel: tkinter.Label
-    _reader: GT521F32.GT521F32
+    _reader: gt521f32.GT521F32
     _scale_factor: int
     _stop: bool
 
-    def __init__(self, reader: GT521F32.GT521F32, scale_factor: int = 1):
+    def __init__(self, reader: gt521f32.GT521F32, scale_factor: int = 1):
         self._reader = reader
         self._scale_factor = scale_factor
 
@@ -83,7 +83,7 @@ def main():
     args = parser.parse_args()
 
     try:
-        v = GT521F32Viewer(GT521F32.GT521F32(args.device), args.scale_factor)
+        v = GT521F32Viewer(gt521f32.GT521F32(args.device), args.scale_factor)
         v.start()
     except GT521F32.GT521F32Exception:
         print("Could not open fingerprint device.")
