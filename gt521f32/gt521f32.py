@@ -10,7 +10,6 @@ from typing import ContextManager, Optional, Callable, Tuple, ClassVar, Union, T
 import PIL  # type: ignore
 import PIL.Image  # type: ignore
 
-
 from . import packets
 from .interfaces import SCSIInterface, SerialInterface, InterfaceException
 
@@ -99,7 +98,7 @@ class GT521F32:
         to_read = packets.ResponsePacket().byte_size()
         response_bytes = self._interface.read(to_read)
 
-        response_packet, _ = packets.ResponsePacket.from_bytes(response_bytes)
+        response_packet = packets.ResponsePacket.from_bytes(response_bytes)
         if response_packet is None:
             logger.error("Command failed.")
             raise GT521F32Exception("Command failed.")
@@ -158,7 +157,7 @@ class GT521F32:
         to_read = packets.OpenDataPacket().byte_size()
         response_bytes = self._interface.read(to_read)
 
-        open_data_response, _ = packets.OpenDataPacket.from_bytes(response_bytes)
+        open_data_response = packets.OpenDataPacket.from_bytes(response_bytes)
         self._firmware_version, self._iso_area_max_size, self._device_serial_number = (
             open_data_response.firmware_version,
             open_data_response.iso_area_max_size,
@@ -186,7 +185,7 @@ class GT521F32:
         if to_read > module_info_known_size:
             logger.error("Module info returned more bytes than expected.")
 
-        module_info_packet, _ = packets.ModuleInfoDataPacket.from_bytes(response_bytes)
+        module_info_packet = packets.ModuleInfoDataPacket.from_bytes(response_bytes)
 
         logger.info("Sensor: %s", module_info_packet.sensor)
         logger.info("Engine Version: %s", module_info_packet.engine_version)
@@ -306,7 +305,7 @@ class GT521F32:
         to_read = packets.GetRawImageDataPacket().byte_size()
         response_bytes = self._interface.read(to_read)
 
-        get_raw_image_data_response, _ = packets.GetRawImageDataPacket.from_bytes(
+        get_raw_image_data_response = packets.GetRawImageDataPacket.from_bytes(
             response_bytes
         )
 
@@ -325,7 +324,7 @@ class GT521F32:
         to_read = packets.GetImageDataPacket().byte_size()
         response_bytes = self._interface.read(to_read)
 
-        get_image_data_response, _ = packets.GetImageDataPacket.from_bytes(
+        get_image_data_response = packets.GetImageDataPacket.from_bytes(
             response_bytes
         )
 
