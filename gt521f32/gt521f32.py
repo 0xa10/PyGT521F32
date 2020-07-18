@@ -1,3 +1,4 @@
+# pylint: disable=bad-continuation # Black and pylint disagree on this
 # pylint: disable=missing-module-docstring
 # pylint: disable=missing-class-docstring
 # pylint: disable=missing-function-docstring
@@ -46,14 +47,14 @@ class GT521F32:
 
     @staticmethod
     def _choose_interface_type(
-            port,
+        port,
     ) -> Union[Type[SerialInterface], Type[SCSIInterface]]:
         if any(
-                port.startswith(_) for _ in ("COM", "/dev/tty")
+            port.startswith(_) for _ in ("COM", "/dev/tty")
         ):  # Any other path patterns?
             return SerialInterface
         if port.startswith("/dev/sg") or (
-                port[0].isalpha() and port[1] == ":" and len(port) == 2
+            port[0].isalpha() and port[1] == ":" and len(port) == 2
         ):
             return SCSIInterface
 
@@ -229,8 +230,8 @@ class GT521F32:
         return True
 
     @retry
-    def enroll_n( # pylint: disable=invalid-name
-            self, n: int, save_enroll_photos: bool = False
+    def enroll_n(  # pylint: disable=invalid-name
+        self, n: int, save_enroll_photos: bool = False
     ) -> bool:
         self.prompt_finger_and_capture()
 
@@ -264,7 +265,7 @@ class GT521F32:
         for i in range(1, 4):
             with self.prompt_finger():
                 if not self.enroll_n(
-                        i, save_enroll_photos
+                    i, save_enroll_photos
                 ):  # Not sure why this only works when reentering
                     logger.debug("Enrollment for user id %d failed, aborting.", user_id)
                     break
@@ -324,9 +325,7 @@ class GT521F32:
         to_read = packets.GetImageDataPacket().byte_size()
         response_bytes = self._interface.read(to_read)
 
-        get_image_data_response = packets.GetImageDataPacket.from_bytes(
-            response_bytes
-        )
+        get_image_data_response = packets.GetImageDataPacket.from_bytes(response_bytes)
 
         return get_image_data_response.bitmap
 

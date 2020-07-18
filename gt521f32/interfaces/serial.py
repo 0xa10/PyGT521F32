@@ -1,3 +1,4 @@
+# pylint: disable=bad-continuation # Black and pylint disagree on this
 # pylint: disable=missing-module-docstring
 # pylint: disable=missing-class-docstring
 # pylint: disable=missing-function-docstring
@@ -22,11 +23,11 @@ class SerialInterface:
     _FRAGMENT_SIZE = 512
 
     def __init__(
-            self,
-            port,
-            baudrate=_DEFAULT_BAUD_RATE,
-            bytesize=_DEFAULT_BYTESIZE,
-            timeout=_DEFAULT_TIMEOUT,
+        self,
+        port,
+        baudrate=_DEFAULT_BAUD_RATE,
+        bytesize=_DEFAULT_BYTESIZE,
+        timeout=_DEFAULT_TIMEOUT,
     ):
         self._port = port
         try:
