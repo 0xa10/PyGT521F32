@@ -1,7 +1,10 @@
-import serial.win32 as win32
+# pylint: disable=missing-module-docstring
+# pylint: disable=missing-class-docstring
+# pylint: disable=missing-function-docstring
+import ctypes
 from ctypes.wintypes import UINT, ULONG, USHORT, DWORD, BOOL, HANDLE
 from ctypes.wintypes import LPCWSTR
-import ctypes
+import serial.win32 as win32  # type: ignore
 
 # an interface for communicating with reader over SCSI, implemented in the style of pyserial
 
@@ -18,23 +21,29 @@ LPVOID = win32.LPVOID
 LPDWORD = win32.LPDWORD
 
 try:
-    GetDriveTypeW = win32._stdcall_libraries["kernel32"].GetDriveTypeW
+    GetDriveTypeW = win32._stdcall_libraries[  # pylint: disable=invalid-name, protected-access
+        "kernel32"
+    ].GetDriveTypeW
     GetDriveTypeW.restype = UINT
     GetDriveTypeW.argtypes = [
         LPCWSTR,
     ]
-    GetDriveType = GetDriveTypeW  # alias
+    GetDriveType = GetDriveTypeW  # alias # pylint: disable=invalid-name
 except AttributeError:
     from ctypes.wintypes import LPCSTR
 
-    GetDriveTypeA = win32._stdcall_libraries["kernel32"].GetDriveTypeA
+    GetDriveTypeA = win32._stdcall_libraries[  # pylint: disable=invalid-name, protected-access
+        "kernel32"
+    ].GetDriveTypeA
     GetDriveTypeA.restype = UINT
     GetDriveTypeA.argtypes = [
         LPCSTR,
     ]
-    GetDriveType = GetDriveTypeA  # alias
+    GetDriveType = GetDriveTypeA  # alias # pylint: disable=invalid-name
 
-DeviceIoControl = win32._stdcall_libraries["kernel32"].DeviceIoControl
+DeviceIoControl = win32._stdcall_libraries[  # pylint: disable=invalid-name, protected-access
+    "kernel32"
+].DeviceIoControl
 DeviceIoControl.restype = BOOL
 DeviceIoControl.argtypes = [
     HANDLE,
@@ -48,11 +57,13 @@ DeviceIoControl.argtypes = [
 ]
 
 
-class SCSI_PASS_THROUGH_DIRECT(ctypes.Structure):
+class SCSI_PASS_THROUGH_DIRECT(
+        ctypes.Structure
+):  # pylint: disable=invalid-name, too-few-public-methods
     pass
 
 
-SCSI_PASS_THROUGH_DIRECT._fields_ = [
+SCSI_PASS_THROUGH_DIRECT._fields_ = [  # pylint: disable=protected-access
     ("Length", USHORT),
     ("ScsiStatus", UCHAR),
     ("PathId", UCHAR),
@@ -69,18 +80,20 @@ SCSI_PASS_THROUGH_DIRECT._fields_ = [
 ]
 
 
-class SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER(ctypes.Structure):
+class SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER(
+        ctypes.Structure
+):  # pylint: disable=invalid-name, too-few-public-methods
     pass
 
 
-SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER._fields_ = [
+SCSI_PASS_THROUGH_DIRECT_WITH_BUFFER._fields_ = [  # pylint: disable=protected-access
     ("sptd", SCSI_PASS_THROUGH_DIRECT),
     ("Filler", ULONG),
     ("ucSenseBuf", UCHAR * 32),
 ]
 
 
-def CTL_CODE(DeviceType, Function, Method, Access):
+def CTL_CODE(DeviceType, Function, Method, Access):  # pylint: disable=invalid-name
     return (DeviceType << 16) | (Access << 14) | (Function << 2) | Method
 
 
@@ -103,7 +116,7 @@ class WindowsSCSIInterfaceException(Exception):
     pass
 
 
-class WindowsSCSIInterface(object):
+class WindowsSCSIInterface:
     def __init__(self, port: str):
         self._drive = port
 
@@ -167,16 +180,16 @@ class WindowsSCSIInterface(object):
         )
 
         if not result_ok and win32.GetLastError() not in (
-            win32.ERROR_SUCCESS,
-            win32.ERROR_IO_PENDING,
+                win32.ERROR_SUCCESS,
+                win32.ERROR_IO_PENDING,
         ):
             raise WindowsSCSIInterfaceException(
                 "DeviceIoControl failed ({!r})".format(ctypes.WinError())
             )
 
         if returned.value < (
-            SCSI_PASS_THROUGH_DIRECT.ScsiStatus.offset
-            + SCSI_PASS_THROUGH_DIRECT.ScsiStatus.size
+                SCSI_PASS_THROUGH_DIRECT.ScsiStatus.offset
+                + SCSI_PASS_THROUGH_DIRECT.ScsiStatus.size
         ):
             raise WindowsSCSIInterfaceException(
                 "Not enough SCSI information returned to determine error"
