@@ -1,18 +1,14 @@
-import sys
-import time
-
+# pylint: disable=missing-module-docstring
+# pylint: disable=missing-class-docstring
 import argparse
-import PIL.ImageTk # type: ignore
-import PIL.Image # type: ignore
-import tkinter
-import threading
-
 import gt521f32
-
+import PIL.ImageTk  # type: ignore
+import PIL.Image  # type: ignore
+import tkinter
 from typing import Tuple, ClassVar
 
 
-class GT521F32Viewer(object):
+class GT521F32Viewer:
     _FRAME_RATE: ClassVar[int] = 25
     _DIMENSIONS: Tuple[int, int] = (
         160,
@@ -43,7 +39,7 @@ class GT521F32Viewer(object):
         self._root.wm_protocol("WM_DELETE_WINDOW", self.stop)
 
     def _video_loop(self):
-        data = self._reader._get_raw_image()
+        data = self._reader._get_raw_image()  # pylint: disable=protected-access
         if data:
             image = PIL.Image.frombytes("L", self._DIMENSIONS, data, "raw")
             self._update(image)
