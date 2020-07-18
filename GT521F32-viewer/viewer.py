@@ -56,7 +56,7 @@ class GT521F32Viewer(object):
         self._root.after(1_000 // GT521F32Viewer._FRAME_RATE, self._video_loop)
         self._root.mainloop()
 
-    def _update(self, image: PIL.ImageTk.PhotoImage):
+    def _update(self, image: PIL.Image.Image):
         if self._scale_factor != 1:
             image = image.resize(
                 (
