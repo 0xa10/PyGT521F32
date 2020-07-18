@@ -4,10 +4,13 @@
 # pylint: disable=C0103
 import ctypes
 import io
+import logging
 import struct
 
 from typing import Optional
 from collections import OrderedDict
+
+logger = logging.getLogger(__name__)  # pylint: disable=invalid-name
 
 reverse = lambda x: {v: k for k, v in x.items()}
 
@@ -118,16 +121,16 @@ class Packet:
 
         return field_bytes + struct.pack(checksum_field, *checksum_content)
 
-    @classmethod
-    def from_bytes(cls, input_bytes):
+    @staticmethod
+    def from_bytes_static(cls, input_bytes): # pylint: disable=bad-staticmethod-argument
         instance = cls()
         byte_stream = io.BytesIO(input_bytes)
         for key, (field, _) in instance._fields.items():
             field_size = struct.calcsize(field)
             field_content = byte_stream.read(field_size)
             if len(field_content) == 0:
-                print("Could not parse %s" % (cls),)
-                return None, None
+                logger.error("Could not parse %s", cls.__name__)
+                return None
 
             unpacked_value = struct.unpack(field, field_content)
             instance._fields[key] = (field, unpacked_value)
@@ -136,18 +139,18 @@ class Packet:
         checksum_field, _ = Checksum(0)
         checksum_bytes = byte_stream.read(struct.calcsize(checksum_field))
         if len(checksum_bytes) == 0:
-            print("Checksum bytes are missing.")
-            return None, None
+            logger.error("Checksum bytes are missing.")
+            return None
 
         checksum = struct.unpack(checksum_field, checksum_bytes)[0]
         if checksum != instance._checksum():  # pylint: disable=protected-access
-            print("Bad checksum.")
-            return None, None
+            logger.error("Bad checksum.")
+            return None
 
         if byte_stream.tell() < len(input_bytes):
-            print("Extra bytes in packet, returning in second param")
+            logger.error("Extra bytes in packet!")
 
-        return instance, input_bytes[byte_stream.tell() :]
+        return instance
 
 
 class CommandPacket(Packet):
@@ -183,10 +186,10 @@ class ResponsePacket(Packet):
     def ok(self) -> bool:
         return self.response_code == command_codes["ACK_OK"]
 
-    @staticmethod
-    def from_bytes(input_bytes):
-        # Hack for satisfying lint
-        return super().from_bytes(ResponsePacket, input_bytes)
+    @classmethod
+    def from_bytes(cls, input_bytes):
+        # Terrible hack for making lint happy
+        return Packet.from_bytes_static(cls, input_bytes)
 
 
 class DataPacket(Packet):
@@ -203,10 +206,10 @@ class DataPacket(Packet):
     def data(self) -> bytes:
         return self._fields["Data"][1]
 
-    @staticmethod
-    def from_bytes(input_bytes):
-        # Hack for satisfying lint
-        return super().from_bytes(DataPacket, input_bytes)
+    @classmethod
+    def from_bytes(cls, input_bytes):
+        # Terrible hack for making lint happy
+        return Packet.from_bytes_static(cls, input_bytes)
 
 
 Sensor = lambda x: ("B" * 12, x)
@@ -282,11 +285,10 @@ class ModuleInfoDataPacket(Packet):
     def template_size(self) -> int:
         return self._fields["TemplateSize"][1][0]
 
-    @staticmethod
-    def from_bytes(input_bytes):
-        # Hack for satisfying lint
-        return super().from_bytes(ModuleInfoDataPacket, input_bytes)
-
+    @classmethod
+    def from_bytes(cls, input_bytes):
+        # Terrible hack for making lint happy
+        return Packet.from_bytes_static(cls, input_bytes)
 
 FirmwareVersion = lambda x: ("<L", x)
 IsoAreaMaxSize = lambda x: ("<L", x)
@@ -314,10 +316,10 @@ class OpenDataPacket(Packet):
     def device_serial_number(self) -> str:
         return bytes(self._fields["DeviceSerialNumber"][1]).hex().upper()
 
-    @staticmethod
-    def from_bytes(input_bytes):
-        # Hack for satisfying lint
-        return super().from_bytes(OpenDataPacket, input_bytes)
+    @classmethod
+    def from_bytes(cls, input_bytes):
+        # Terrible hack for making lint happy
+        return Packet.from_bytes_static(cls, input_bytes)
 
 
 Bitmap = lambda x: ("52116B", x)
@@ -332,10 +334,10 @@ class GetImageDataPacket(Packet):
     def bitmap(self) -> bytes:
         return bytes(self._fields["Bitmap"][1])
 
-    @staticmethod
-    def from_bytes(input_bytes):
-        # Hack for satisfying lint
-        return super().from_bytes(GetImageDataPacket, input_bytes)
+    @classmethod
+    def from_bytes(cls, input_bytes):
+        # Terrible hack for making lint happy
+        return Packet.from_bytes_static(cls, input_bytes)
 
 
 RawBitmap = lambda x: ("19200B", x)
@@ -350,7 +352,7 @@ class GetRawImageDataPacket(Packet):
     def raw_bitmap(self) -> bytes:
         return bytes(self._fields["RawBitmap"][1])
 
-    @staticmethod
-    def from_bytes(input_bytes):
-        # Hack for satisfying lint
-        return super().from_bytes(GetRawImageDataPacket, input_bytes)
+    @classmethod
+    def from_bytes(cls, input_bytes):
+        # Terrible hack for making lint happy
+        return Packet.from_bytes_static(cls, input_bytes)
