@@ -1,11 +1,14 @@
-# pylint: disable=missing-module-docstring
 # pylint: disable=missing-class-docstring
+# pylint: disable=missing-function-docstring
+# pylint: disable=missing-module-docstring
 import argparse
-import gt521f32
-import PIL.ImageTk  # type: ignore
-import PIL.Image  # type: ignore
 import tkinter
 from typing import Tuple, ClassVar
+
+import PIL.ImageTk  # type: ignore
+import PIL.Image  # type: ignore
+
+import gt521f32
 
 
 class GT521F32Viewer:
@@ -20,6 +23,7 @@ class GT521F32Viewer:
     _reader: gt521f32.GT521F32
     _scale_factor: int
     _stop: bool
+    _image_tk: PIL.ImageTk.PhotoImage = None
 
     def __init__(self, reader: gt521f32.GT521F32, scale_factor: int = 1):
         self._reader = reader
@@ -79,9 +83,9 @@ def main():
     args = parser.parse_args()
 
     try:
-        v = GT521F32Viewer(gt521f32.GT521F32(args.device), args.scale_factor)
-        v.start()
-    except GT521F32.GT521F32Exception:
+        viewer = GT521F32Viewer(gt521f32.GT521F32(args.device), args.scale_factor)
+        viewer.start()
+    except gt521f32.GT521F32Exception:
         print("Could not open fingerprint device.")
     except (KeyboardInterrupt, InterruptedError):
-        v.stop()
+        viewer.stop()
