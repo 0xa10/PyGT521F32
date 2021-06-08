@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "PyGT521F32"
-version = "0.1.5"
+version = "0.1.6"
 description = "An SDK module for the ADH-Tech GT521F32 fingerprint scanner"
 authors = ["Alon <alonlivne@gmail.com>"]
 packages = [
@@ -13,7 +13,7 @@ packages = [
 python = "^3.8"
 pyserial = "^3.5"
 Pillow = "^8.2.0"
-cython-sgio = "^1.1.2"
+cython-sgio = {version = "^1.1.2", platform = "linux"}
 
 [tool.poetry.dev-dependencies]
 
